@@ -15,53 +15,64 @@ const allowancesEl = document.getElementById('allowances');
 
 const cache = new Map();
 
-function unique(values) {
-  return [...new Set(values.filter(Boolean))];
+const TABLE_BASE_CANDIDATES = [
+  '../tables',
+  '../../tables',
+  'https://raw.githubusercontent.com/stfnrpplngr/TVData/Comparing-Remuneration-Tables/tables',
+  'https://raw.githubusercontent.com/stfnrpplngr/TVData/main/tables',
+];
+
+let tablesBase = null;
+let tablesList = null;
+
+async function fetchJSON(path) {
+  const res = await fetch(path, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Fehler beim Laden: ${path}`);
+  return await res.json();
 }
 
-function githubReposFromLocation() {
-  const repos = [];
-  const { hostname, pathname } = window.location;
+async function resolveTablesBase() {
+  if (tablesBase && tablesList) return tablesBase;
 
-  if (hostname.endsWith('github.io')) {
-    const owner = hostname.split('.')[0];
-    const [repo] = pathname.split('/').filter(Boolean);
-    if (owner && repo) repos.push({ owner, repo });
+  for (const candidate of TABLE_BASE_CANDIDATES) {
+    try {
+      const data = await fetchJSON(`${candidate}/index.json`);
+      if (!Array.isArray(data) || data.length === 0) continue;
+      tablesList = data.map((x) => `${x}`.trim()).filter(Boolean);
+      if (!tablesList.length) continue;
+      tablesBase = candidate;
+      return tablesBase;
+    } catch (_) {
+      // try next candidate
+    }
   }
 
-  const pathSegments = pathname.split('/').filter(Boolean);
-  if (pathSegments.length >= 2) {
-    const [repo] = pathSegments;
-    ['stfnrpplngr', 'Tekergo-T'].forEach((owner) => repos.push({ owner, repo }));
-  }
-
-  repos.push({ owner: 'stfnrpplngr', repo: 'TVData' });
-  repos.push({ owner: 'Tekergo-T', repo: 'TVData' });
-
-  return unique(repos.map(({ owner, repo }) => `${owner}/${repo}`));
+  throw new Error(`tables/index.json fehlt oder ist leer. Geprüfte Pfade: ${TABLE_BASE_CANDIDATES.join(', ')}`);
 }
 
-var tablesBaseCandidates = globalThis.__tvdataTablesBaseCandidates || (() => {
-  const candidates = [
-    '../tables',
-    '../../tables',
-    '/tables',
-    './remote/tables',
-    '../remote/tables',
-    '/remote/tables',
-  ];
-  const branches = ['Comparing-Remuneration-Tables', 'main', 'master'];
-  githubReposFromLocation().forEach((repoPath) => {
-    branches.forEach((branch) => {
-      candidates.push(`https://cdn.jsdelivr.net/gh/${repoPath}@${branch}/tables`);
-      candidates.push(`https://raw.githubusercontent.com/${repoPath}/${branch}/tables`);
-    });
-  });
-  return unique(candidates);
-})();
-globalThis.__tvdataTablesBaseCandidates = tablesBaseCandidates;
-var tablesBase = globalThis.__tvdataTablesBase || null;
-var tablesList = globalThis.__tvdataTablesList || null;
+async function listTables() {
+  await resolveTablesBase();
+  return tablesList;
+}
+
+async function fetchCSV(path) {
+  const res = await fetch(path, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Fehler beim Laden: ${path}`);
+  return parseCSV(await res.text());
+}
+
+async function loadTable(name) {
+  if (cache.has(name)) return cache.get(name);
+  const base = `${await resolveTablesBase()}/${encodeURIComponent(name)}`;
+  const [tableRows, advRows, metaRows] = await Promise.all([
+    fetchCSV(`${base}/Table.csv`),
+    fetchCSV(`${base}/Adv.csv`),
+    fetchCSV(`${base}/Meta.csv`),
+  ]);
+  const data = { name, table: gridObject(tableRows), adv: gridObject(advRows), meta: kvObject(metaRows) };
+  cache.set(name, data);
+  return data;
+}
 
 const toNum = (v) => {
   if (v == null || `${v}`.trim() === '') return null;
@@ -89,92 +100,6 @@ function gridObject(rows) {
     out[r[0]] = row;
   });
   return out;
-}
-
-async function fetchCSV(path) {
-  const res = await fetch(path);
-  if (!res.ok) throw new Error(`Fehler beim Laden: ${path}`);
-  return parseCSV(await res.text());
-}
-
-async function fetchJSON(path) {
-  const res = await fetch(path);
-  if (!res.ok) throw new Error(`Fehler beim Laden: ${path}`);
-  return await res.json();
-}
-
-async function fetchJSONWithTimeout(path, timeoutMs = 2000) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(path, { signal: ctrl.signal });
-    if (!res.ok) throw new Error(`Fehler beim Laden: ${path}`);
-    return await res.json();
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-function normalizeTableList(data) {
-  if (!Array.isArray(data)) return [];
-  return data
-    .map((item) => {
-      if (typeof item === 'string') return item;
-      if (item && typeof item === 'object') return item.name || item.id || item.table || '';
-      return '';
-    })
-    .map((x) => `${x}`.trim())
-    .filter(Boolean);
-}
-
-async function probeTableIndex(candidate) {
-  try {
-    const isRemote = /^https?:\/\//.test(candidate);
-    const data = isRemote
-      ? await fetchJSONWithTimeout(`${candidate}/index.json`, 2000)
-      : await fetchJSON(`${candidate}/index.json`);
-    const list = normalizeTableList(data);
-    if (list.length > 0) return list;
-  } catch (_) {
-    // try next candidate
-  }
-  return null;
-}
-
-async function resolveTablesBase() {
-  if (tablesBase && tablesList) return tablesBase;
-
-  for (const candidate of tablesBaseCandidates) {
-    const list = await probeTableIndex(candidate);
-    if (list) {
-      tablesBase = candidate;
-      tablesList = list;
-      globalThis.__tvdataTablesBase = tablesBase;
-      globalThis.__tvdataTablesList = tablesList;
-      return tablesBase;
-    }
-  }
-
-  throw new Error(`tables/index.json fehlt oder ist leer. Geprüfte Pfade: ${tablesBaseCandidates.join(', ')}`);
-}
-
-async function listTables() {
-  await resolveTablesBase();
-  return tablesList;
-}
-
-async function loadTable(name) {
-  if (cache.has(name)) return cache.get(name);
-  const tableBase = await resolveTablesBase();
-  const base = `${tableBase}/${encodeURIComponent(name)}`;
-  const [tableRows, advRows, metaRows] = await Promise.all([
-    fetchCSV(`${base}/Table.csv`),
-    fetchCSV(`${base}/Adv.csv`),
-    fetchCSV(`${base}/Meta.csv`),
-  ]);
-  const data = { name, table: gridObject(tableRows), adv: gridObject(advRows), meta: kvObject(metaRows) };
-  cache.set(name, data);
-  return data;
 }
 
 function selectedValues(select) {

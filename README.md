@@ -482,3 +482,30 @@ To link the remunerations table, supplementary pension insurance, and allowances
 1. In the `Meta.csv` file of the remuneration table, specify the corresponding supplementary pension insurances and allowances by including their folder names under the `prv` and `allowances` fields, respectively.
 2. In the `Meta.csv` file of the prv, specify the link to the Supplementary Pension Insurance and other relevant information.
 3. In the `Meta.csv` file of each allowance, specify the necessary meta information and link to additional details.
+## Erweiterung: Vergleich mehrerer Entgelttabellen (Browser/GitHub Pages)
+
+Es gibt jetzt eine statische Vergleichsseite unter `docs/compare/index.html`.
+Die Seite lädt die CSV-Daten direkt aus dem Repository und führt **alle Berechnungen im Browser** aus (ohne Backend).
+
+Funktionen:
+- Mehrfachauswahl von Tarifverträgen
+- Heatmap der Unterschiede zwischen Baseline und Vergleichstabelle
+- Graphische Gehaltsentwicklung über Gruppen und Stufen
+- Sichtbare interne Progressionslogik (Gesamtlaufzeit in Jahren)
+- Objektive Kennzahlen (u. a. Mittelwert, Median, P10/P90, IQR, Standardabweichung, Variationskoeffizient)
+- Direkte Vergleichs-KPIs (z. B. Ø-Differenz, Median-Differenz, Korrelation, gemeinsame Zellen)
+- Zusätzliche Darstellungen: Histogramm der Gehaltsverteilungen und Balkenvergleich je Entgeltgruppe
+- Übersichtlicher Zulagenvergleich über mehrere Tabellen
+
+Für GitHub Pages:
+- Die Seite liegt im `docs/`-Ordner und ist damit direkt als Pages-Quelle geeignet.
+- `tables/index.json` enthält die auswählbaren Tabellen für die statische Seite.
+
+Lokal starten (Beispiel):
+
+```bash
+python -m http.server 8000
+```
+
+Danach im Browser öffnen:
+`http://localhost:8000/docs/compare/`

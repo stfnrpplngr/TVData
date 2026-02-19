@@ -13,6 +13,22 @@ const logicEl = document.getElementById('logic');
 const allowancesEl = document.getElementById('allowances');
 
 const cache = new Map();
+const tablesBaseCandidates = (() => {
+  const candidates = ['../tables', '../../tables'];
+  const { hostname, pathname } = window.location;
+
+  if (hostname.endsWith('github.io')) {
+    const owner = hostname.split('.')[0];
+    const [repo] = pathname.split('/').filter(Boolean);
+    if (owner && repo) {
+      candidates.push(`https://cdn.jsdelivr.net/gh/${owner}/${repo}@main/tables`);
+      candidates.push(`https://cdn.jsdelivr.net/gh/${owner}/${repo}@master/tables`);
+    }
+  }
+
+  return candidates;
+})();
+let tablesBase = null;
 
 function unique(values) {
   return [...new Set(values.filter(Boolean))];

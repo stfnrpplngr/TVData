@@ -7,67 +7,122 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="page">
-      <h1>Vergleich von Entgelttabellen</h1>
-      <p class="muted">Alle Berechnungen und Darstellungen laufen direkt im Browser (GitHub Pages geeignet).</p>
-
-      <section class="panel controls">
+    <div class="app-shell">
+      <header class="topbar panel">
+        <div class="brand">
+          <h1>TVData Dashboard</h1>
+          <p class="muted">Tarifvergleiche für Verhandlung, Transparenz und Governance.</p>
+        </div>
         <label>
-          Tabellen auswählen
-          <select id="tableSelect" multiple size="10"></select>
+          Tarif A
+          <select id="tariffASelect"></select>
         </label>
         <label>
-          Baseline
-          <select id="baselineSelect"></select>
+          Tarif B
+          <select id="tariffBSelect"></select>
         </label>
         <label>
-          Vergleichstabelle (Heatmap/Graph)
-          <select id="targetSelect"></select>
+          Referenz
+          <select id="referenceMode">
+            <option value="A_MINUS_B">Differenz = A minus B</option>
+            <option value="B_MINUS_A">Differenz = B minus A</option>
+          </select>
         </label>
-        <button id="loadBtn">Vergleich laden</button>
-      </section>
+        <div class="meta-block">
+          <div id="validityInfo" class="meta-line">Gültigkeitsstand: —</div>
+          <div id="versionInfo" class="meta-line">Version: —</div>
+        </div>
+        <div class="export-row">
+          <button id="exportCsv">CSV</button>
+          <button id="exportExcel">Excel</button>
+          <button id="exportPng">PNG</button>
+        </div>
+      </header>
 
-      <section class="panel">
-        <h2>Metriken je Tabelle</h2>
-        <div id="metrics"></div>
-      </section>
+      <aside class="sidebar panel">
+        <h2>Filter & Logik</h2>
+        <label>Entgeltgruppe von <input id="groupFrom" type="number" min="1" value="1" /></label>
+        <label>Entgeltgruppe bis <input id="groupTo" type="number" min="1" value="15" /></label>
+        <label>Stufe von <input id="stepFrom" type="number" min="1" value="1" /></label>
+        <label>Stufe bis <input id="stepTo" type="number" min="1" value="6" /></label>
+        <label>
+          Nur ausgewählte EGs (Komma getrennt)
+          <input id="selectedGroups" type="text" placeholder="z. B. 9,10,11" />
+        </label>
 
-      <section class="panel">
-        <h2>Direkter Vergleich: Baseline vs. Vergleich</h2>
-        <div id="pairKpis" class="cards"></div>
-      </section>
+        <fieldset>
+          <legend>Komponenten</legend>
+          <label><input type="checkbox" id="includeBase" checked /> Grundentgelt</label>
+          <label><input type="checkbox" id="includeJsz" checked /> Jahressonderzahlung</label>
+          <label><input type="checkbox" id="includeVwl" checked /> VWL</label>
+          <label><input type="checkbox" id="includeAllowances" checked /> Zulagen</label>
+        </fieldset>
 
-      <section class="panel">
-        <h2>Heatmap (Differenzen)</h2>
-        <div id="heatmap"></div>
-      </section>
+        <label>
+          Zeitlogik
+          <select id="timeMode">
+            <option value="standard">Stufenlaufzeiten Standard</option>
+            <option value="tariff">Stufenlaufzeiten Tarif-spezifisch</option>
+            <option value="custom">Eigener Laufzeitenmodus</option>
+          </select>
+        </label>
+        <label>
+          Eigene Laufzeit pro Stufe (Jahre)
+          <input id="customDuration" type="number" min="0.5" step="0.5" value="2" />
+        </label>
 
-      <section class="panel">
-        <h2>Durchschnittliche Differenz je Entgeltgruppe</h2>
-        <div id="groupBars"></div>
-      </section>
+        <label><input type="checkbox" id="argumentMode" /> Argumentationsmodus</label>
+        <button id="applyBtn">Dashboard aktualisieren</button>
+      </aside>
 
-      <section class="panel">
-        <h2>Gehaltsentwicklung (Gruppen/Stufen)</h2>
-        <div id="graph"></div>
-      </section>
+      <main class="content">
+        <section class="panel" id="overviewSection">
+          <h2>Ansicht A: Überblick</h2>
+          <div id="kpiTiles" class="cards"></div>
+          <div id="curvePlot" class="chart-wrap"></div>
+          <div id="differenceBand" class="chart-wrap"></div>
+        </section>
 
-      <section class="panel">
-        <h2>Verteilung der Gehälter (Histogramm)</h2>
-        <div id="hist"></div>
-      </section>
+        <section class="panel" id="detailSection">
+          <h2>Ansicht B: Detailvergleich Entgeltgruppe</h2>
+          <label>Fokus EG <select id="detailGroupSelect"></select></label>
+          <div id="detailTable"></div>
+          <div id="microChart" class="chart-wrap"></div>
+          <div id="detailHoverInfo" class="muted">Hover über eine Tabellenzelle für Rundung/Stufenlaufzeit/Jahresbrutto.</div>
+        </section>
 
-      <section class="panel">
-        <h2>Interne Progressionslogik</h2>
-        <div id="logic"></div>
-      </section>
+        <section class="panel" id="heatmapSection">
+          <h2>Ansicht C: Heatmap Vergleich aller EGs</h2>
+          <label>
+            Darstellung
+            <select id="heatmapMode">
+              <option value="abs">Absolute Differenzen</option>
+              <option value="rel">Prozentdifferenzen</option>
+            </select>
+          </label>
+          <div id="heatmap"></div>
+        </section>
 
-      <section class="panel">
-        <h2>Zulagenvergleich</h2>
-        <div id="allowances"></div>
-      </section>
-    </main>
+        <section class="panel" id="simSection">
+          <h2>Ansicht D: Jahres- und Lebensverdienst Rechner</h2>
+          <div class="sim-grid">
+            <label>EG <select id="simGroup"></select></label>
+            <label>Startstufe <input id="simStartStep" type="number" min="1" value="1" /></label>
+            <label>Laufzeit (Jahre) <input id="simYears" type="number" min="1" value="15" /></label>
+            <label>Jahresarbeitszeitfaktor <input id="simWorkFactor" type="number" min="0.1" step="0.1" value="1" /></label>
+          </div>
+          <div id="lifetimeChart" class="chart-wrap"></div>
+          <div id="lifetimeTable"></div>
+        </section>
 
-    <script type="module" src="./app-main.js?v=20260220"></script>
+        <section class="panel" id="sourceSection">
+          <h2>Ansicht E: Quellen & Änderungslog</h2>
+          <div id="sources"></div>
+          <div id="governance"></div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="./app-main.js?v=20260220a"></script>
   </body>
 </html>

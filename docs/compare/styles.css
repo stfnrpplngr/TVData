@@ -1,22 +1,69 @@
-:root { font-family: Arial, sans-serif; color: #1f2937; }
-body { margin: 0; background: #f3f4f6; }
-.page { max-width: 1240px; margin: 0 auto; padding: 20px; }
-.panel { background: #fff; border-radius: 8px; padding: 16px; margin: 14px 0; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-.controls { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 12px; align-items: end; }
-label { display: grid; gap: 6px; font-size: 14px; }
-select, button { padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; }
-button { background: #2563eb; color: #fff; border: none; cursor: pointer; }
-button:hover { background: #1d4ed8; }
-.muted { color: #6b7280; }
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
-.card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; background: #fafafa; }
-.card .k { font-size: 12px; color: #6b7280; }
-.card .v { font-size: 18px; font-weight: 700; margin-top: 4px; }
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th, td { border: 1px solid #e5e7eb; padding: 6px; text-align: right; }
+:root {
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: #172033;
+  --bg: #eef2f8;
+  --panel: #ffffff;
+  --muted: #5e6b83;
+  --line: #dce3ef;
+  --primary: #1d4ed8;
+  --danger: #d32f2f;
+  --success: #0f8a5f;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: radial-gradient(circle at top, #f8fbff 0, var(--bg) 65%); }
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 8px 20px rgba(23, 32, 51, 0.05);
+}
+.app-shell {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  max-width: 1600px;
+  margin: 0 auto;
+  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-areas:
+    "topbar topbar"
+    "sidebar content";
+}
+.topbar { grid-area: topbar; display: grid; grid-template-columns: 1.4fr repeat(3, minmax(150px, 1fr)) 1fr auto; gap: 10px; align-items: end; }
+.sidebar { grid-area: sidebar; align-self: start; position: sticky; top: 8px; display: grid; gap: 10px; }
+.content { grid-area: content; display: grid; gap: 14px; }
+.brand h1 { margin: 0; font-size: 1.3rem; }
+.muted { color: var(--muted); margin: 2px 0 0; font-size: 0.9rem; }
+label { display: grid; gap: 4px; font-size: 0.86rem; color: #293448; }
+select, input, button {
+  border: 1px solid #c9d4e8;
+  border-radius: 8px;
+  padding: 8px 9px;
+  font-size: 0.9rem;
+}
+button { background: var(--primary); color: #fff; border: none; cursor: pointer; font-weight: 600; }
+button:hover { filter: brightness(1.07); }
+fieldset { border: 1px solid var(--line); border-radius: 10px; margin: 0; padding: 8px; }
+fieldset label { display: flex; gap: 6px; align-items: center; }
+legend { color: var(--muted); font-size: 0.82rem; }
+.cards { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.card { border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: #f8fbff; }
+.card .k { font-size: 0.75rem; color: var(--muted); }
+.card .v { font-size: 1.1rem; font-weight: 700; margin-top: 4px; }
+.chart-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; padding: 4px; margin-top: 10px; background: #fff; }
+svg { min-height: 280px; width: 100%; }
+.meta-line { font-size: 0.78rem; color: #42526b; }
+.export-row { display: flex; gap: 6px; }
+.sim-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: 0.84rem; margin-top: 8px; }
+th, td { border: 1px solid var(--line); padding: 6px; text-align: right; }
 th:first-child, td:first-child { text-align: left; }
-.heat { color: #111827; font-weight: 600; }
-.chart-wrap, .graph-wrap { overflow-x: auto; }
-svg { width: 100%; min-height: 380px; background: #fff; }
-.legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; margin: 8px 0; }
-.swatch { width: 10px; height: 10px; display: inline-block; margin-right: 6px; }
+.heatcell { cursor: pointer; font-weight: 600; }
+.positive { color: var(--danger); }
+.negative { color: #1459c8; }
+@media (max-width: 1100px) {
+  .app-shell { grid-template-columns: 1fr; grid-template-areas: "topbar" "sidebar" "content"; }
+  .topbar { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
+  .sidebar { position: static; }
+}

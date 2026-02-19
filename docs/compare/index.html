@@ -7,10 +7,15 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <div class="bg-orb orb-a"></div>
+    <div class="bg-orb orb-b"></div>
+    <div class="bg-orb orb-c"></div>
+
     <div class="app-shell">
-      <header class="topbar panel">
+      <header class="topbar panel glass">
         <div class="brand">
-          <h1>TVData Dashboard</h1>
+          <p class="eyebrow">TVData • Verhandlungs-Analytics</p>
+          <h1>Shiny Tarif Dashboard</h1>
           <p class="muted">Tarifvergleiche für Verhandlung, Transparenz und Governance.</p>
         </div>
         <label>
@@ -21,6 +26,23 @@
           Tarif B
           <select id="tariffBSelect"></select>
         </label>
+        <div class="meta-block">
+          <div id="validityInfo" class="meta-line">Gültigkeitsstand: —</div>
+          <div id="versionInfo" class="meta-line">Version: —</div>
+        </div>
+        <div class="export-row">
+          <button id="exportCsv">CSV</button>
+          <button id="exportExcel">Excel</button>
+          <button id="exportPng">PNG</button>
+        </div>
+      </header>
+
+      <aside class="sidebar panel">
+        <h2>Filter & Logik</h2>
+        <label>Entgeltgruppe von <input id="groupFrom" type="number" min="1" value="1" /></label>
+        <label>Entgeltgruppe bis <input id="groupTo" type="number" min="1" value="15" /></label>
+        <label>Stufe von <input id="stepFrom" type="number" min="1" value="1" /></label>
+        <label>Stufe bis <input id="stepTo" type="number" min="1" value="6" /></label>
         <label>
           Referenz
           <select id="referenceMode">
@@ -39,7 +61,7 @@
         </div>
       </header>
 
-      <aside class="sidebar panel">
+      <aside class="sidebar panel glass">
         <h2>Filter & Logik</h2>
         <label>Entgeltgruppe von <input id="groupFrom" type="number" min="1" value="1" /></label>
         <label>Entgeltgruppe bis <input id="groupTo" type="number" min="1" value="15" /></label>
@@ -76,23 +98,32 @@
       </aside>
 
       <main class="content">
-        <section class="panel" id="overviewSection">
-          <h2>Ansicht A: Überblick</h2>
+        <section class="panel glass" id="overviewSection">
+          <div class="section-head">
+            <h2>Ansicht A: Überblick</h2>
+            <span class="chip">Top-Level Vergleich</span>
+          </div>
           <div id="kpiTiles" class="cards"></div>
           <div id="curvePlot" class="chart-wrap"></div>
           <div id="differenceBand" class="chart-wrap"></div>
         </section>
 
-        <section class="panel" id="detailSection">
-          <h2>Ansicht B: Detailvergleich Entgeltgruppe</h2>
+        <section class="panel glass" id="detailSection">
+          <div class="section-head">
+            <h2>Ansicht B: Detailvergleich Entgeltgruppe</h2>
+            <span class="chip">Deep Dive</span>
+          </div>
           <label>Fokus EG <select id="detailGroupSelect"></select></label>
           <div id="detailTable"></div>
           <div id="microChart" class="chart-wrap"></div>
           <div id="detailHoverInfo" class="muted">Hover über eine Tabellenzelle für Rundung/Stufenlaufzeit/Jahresbrutto.</div>
         </section>
 
-        <section class="panel" id="heatmapSection">
-          <h2>Ansicht C: Heatmap Vergleich aller EGs</h2>
+        <section class="panel glass" id="heatmapSection">
+          <div class="section-head">
+            <h2>Ansicht C: Heatmap Vergleich aller EGs</h2>
+            <span class="chip">Pattern Scan</span>
+          </div>
           <label>
             Darstellung
             <select id="heatmapMode">
@@ -103,8 +134,11 @@
           <div id="heatmap"></div>
         </section>
 
-        <section class="panel" id="simSection">
-          <h2>Ansicht D: Jahres- und Lebensverdienst Rechner</h2>
+        <section class="panel glass" id="simSection">
+          <div class="section-head">
+            <h2>Ansicht D: Jahres- und Lebensverdienst Rechner</h2>
+            <span class="chip">Simulation</span>
+          </div>
           <div class="sim-grid">
             <label>EG <select id="simGroup"></select></label>
             <label>Startstufe <input id="simStartStep" type="number" min="1" value="1" /></label>
@@ -115,8 +149,11 @@
           <div id="lifetimeTable"></div>
         </section>
 
-        <section class="panel" id="sourceSection">
-          <h2>Ansicht E: Quellen & Änderungslog</h2>
+        <section class="panel glass" id="sourceSection">
+          <div class="section-head">
+            <h2>Ansicht E: Quellen & Änderungslog</h2>
+            <span class="chip">Governance</span>
+          </div>
           <div id="sources"></div>
           <div id="governance"></div>
         </section>

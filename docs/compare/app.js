@@ -14,6 +14,50 @@ const allowancesEl = document.getElementById('allowances');
 
 const cache = new Map();
 
+function unique(values) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function githubReposFromLocation() {
+  const repos = [];
+  const { hostname, pathname } = window.location;
+
+  if (hostname.endsWith('github.io')) {
+    const owner = hostname.split('.')[0];
+    const [repo] = pathname.split('/').filter(Boolean);
+    if (owner && repo) repos.push({ owner, repo });
+  }
+
+  const pathSegments = pathname.split('/').filter(Boolean);
+  if (pathSegments.length >= 2) {
+    const [repo] = pathSegments;
+    ['stfnrpplngr', 'Tekergo-T'].forEach((owner) => repos.push({ owner, repo }));
+  }
+
+  repos.push({ owner: 'stfnrpplngr', repo: 'TVData' });
+  repos.push({ owner: 'Tekergo-T', repo: 'TVData' });
+
+  return unique(repos.map(({ owner, repo }) => `${owner}/${repo}`));
+}
+
+const tablesBaseCandidates = (() => {
+  const candidates = [
+    '../tables',
+    '../../tables',
+    '/tables',
+    './remote/tables',
+    '../remote/tables',
+    '/remote/tables',
+  ];
+  githubReposFromLocation().forEach((repoPath) => {
+    candidates.push(`https://cdn.jsdelivr.net/gh/${repoPath}@main/tables`);
+    candidates.push(`https://cdn.jsdelivr.net/gh/${repoPath}@master/tables`);
+  });
+  return unique(candidates);
+})();
+let tablesBase = null;
+let tablesList = null;
+
 const toNum = (v) => {
   if (v == null || `${v}`.trim() === '') return null;
   return Number.parseFloat(`${v}`.replace(',', '.'));
@@ -48,15 +92,74 @@ async function fetchCSV(path) {
   return parseCSV(await res.text());
 }
 
-async function listTables() {
-  const res = await fetch('../../tables/index.json');
-  if (!res.ok) throw new Error('tables/index.json fehlt (für GH Pages bitte generieren)');
+async function fetchJSON(path) {
+  const res = await fetch(path);
+  if (!res.ok) throw new Error(`Fehler beim Laden: ${path}`);
   return await res.json();
+}
+
+async function fetchJSONWithTimeout(path, timeoutMs = 2000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(path, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`Fehler beim Laden: ${path}`);
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function normalizeTableList(data) {
+  if (!Array.isArray(data)) return [];
+  return data
+    .map((item) => {
+      if (typeof item === 'string') return item;
+      if (item && typeof item === 'object') return item.name || item.id || item.table || '';
+      return '';
+    })
+    .map((x) => `${x}`.trim())
+    .filter(Boolean);
+}
+
+async function probeTableIndex(candidate) {
+  try {
+    const isRemote = /^https?:\/\//.test(candidate);
+    const data = isRemote
+      ? await fetchJSONWithTimeout(`${candidate}/index.json`, 2000)
+      : await fetchJSON(`${candidate}/index.json`);
+    const list = normalizeTableList(data);
+    if (list.length > 0) return list;
+  } catch (_) {
+    // try next candidate
+  }
+  return null;
+}
+
+async function resolveTablesBase() {
+  if (tablesBase && tablesList) return tablesBase;
+
+  for (const candidate of tablesBaseCandidates) {
+    const list = await probeTableIndex(candidate);
+    if (list) {
+      tablesBase = candidate;
+      tablesList = list;
+      return tablesBase;
+    }
+  }
+
+  throw new Error(`tables/index.json fehlt oder ist leer. Geprüfte Pfade: ${tablesBaseCandidates.join(', ')}`);
+}
+
+async function listTables() {
+  await resolveTablesBase();
+  return tablesList;
 }
 
 async function loadTable(name) {
   if (cache.has(name)) return cache.get(name);
-  const base = `../../tables/${encodeURIComponent(name)}`;
+  const tableBase = await resolveTablesBase();
+  const base = `${tableBase}/${encodeURIComponent(name)}`;
   const [tableRows, advRows, metaRows] = await Promise.all([
     fetchCSV(`${base}/Table.csv`),
     fetchCSV(`${base}/Adv.csv`),
@@ -318,10 +421,15 @@ function renderLogic(base, target) {
   logicEl.innerHTML = `<table><thead><tr><th>Gruppe</th><th>Gesamtjahre Baseline</th><th>Gesamtjahre Vergleich</th><th>Differenz</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${r.g}</td><td>${fmt(r.a)}</td><td>${fmt(r.b)}</td><td>${fmt(r.d)}</td></tr>`).join('')}</tbody></table>`;
 }
 
+function allowanceBaseFromTablesBase() {
+  if (!tablesBase) return '../../allowances';
+  return tablesBase.replace(/\/tables$/, '/allowances');
+}
+
 async function loadAllowanceMeta(name) {
   const [metaRows, tableRows] = await Promise.all([
-    fetchCSV(`../../allowances/${name}/Meta.csv`),
-    fetchCSV(`../../allowances/${name}/Table.csv`),
+    fetchCSV(`${allowanceBaseFromTablesBase()}/${name}/Meta.csv`),
+    fetchCSV(`${allowanceBaseFromTablesBase()}/${name}/Table.csv`),
   ]);
   const meta = kvObject(metaRows);
   const values = tableRows.slice(1).flatMap((r) => r.slice(1)).map(toNum).filter((x) => x != null);
@@ -375,7 +483,9 @@ function syncSelectors() {
 }
 
 async function init() {
+  tableSelect.innerHTML = '<option>Lade Tabellen ...</option>';
   const tables = await listTables();
+  if (!tables.length) throw new Error('Keine Tabellen gefunden (index.json enthält keine Einträge).');
   tableSelect.innerHTML = tables.map((t) => `<option value="${t}">${t}</option>`).join('');
   [...tableSelect.options].slice(0, 3).forEach((o) => { o.selected = true; });
   syncSelectors();

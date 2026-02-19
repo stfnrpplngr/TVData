@@ -30,6 +30,42 @@ const tablesBaseCandidates = (() => {
 })();
 let tablesBase = null;
 
+function unique(values) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function githubReposFromLocation() {
+  const repos = [];
+  const { hostname, pathname } = window.location;
+
+  if (hostname.endsWith('github.io')) {
+    const owner = hostname.split('.')[0];
+    const [repo] = pathname.split('/').filter(Boolean);
+    if (owner && repo) repos.push({ owner, repo });
+  }
+
+  const pathSegments = pathname.split('/').filter(Boolean);
+  if (pathSegments.length >= 2) {
+    const [repo] = pathSegments;
+    ['stfnrpplngr', 'Tekergo-T'].forEach((owner) => repos.push({ owner, repo }));
+  }
+
+  repos.push({ owner: 'stfnrpplngr', repo: 'TVData' });
+  repos.push({ owner: 'Tekergo-T', repo: 'TVData' });
+
+  return unique(repos.map(({ owner, repo }) => `${owner}/${repo}`));
+}
+
+const tablesBaseCandidates = (() => {
+  const candidates = ['../tables', '../../tables', '/tables'];
+  githubReposFromLocation().forEach((repoPath) => {
+    candidates.push(`https://cdn.jsdelivr.net/gh/${repoPath}@main/tables`);
+    candidates.push(`https://cdn.jsdelivr.net/gh/${repoPath}@master/tables`);
+  });
+  return unique(candidates);
+})();
+let tablesBase = null;
+
 const toNum = (v) => {
   if (v == null || `${v}`.trim() === '') return null;
   return Number.parseFloat(`${v}`.replace(',', '.'));
@@ -81,7 +117,7 @@ async function resolveTablesBase() {
     }
   }
 
-  throw new Error('tables/index.json fehlt (lokal unter docs/tables oder im Repository über CDN erreichbar)');
+  throw new Error(`tables/index.json fehlt. Geprüfte Pfade: ${tablesBaseCandidates.join(', ')}`);
 }
 
 async function listTables() {

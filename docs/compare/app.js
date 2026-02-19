@@ -14,6 +14,50 @@ const allowancesEl = document.getElementById('allowances');
 
 const cache = new Map();
 
+function unique(values) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function githubReposFromLocation() {
+  const repos = [];
+  const { hostname, pathname } = window.location;
+
+  if (hostname.endsWith('github.io')) {
+    const owner = hostname.split('.')[0];
+    const [repo] = pathname.split('/').filter(Boolean);
+    if (owner && repo) repos.push({ owner, repo });
+  }
+
+  const pathSegments = pathname.split('/').filter(Boolean);
+  if (pathSegments.length >= 2) {
+    const [repo] = pathSegments;
+    ['stfnrpplngr', 'Tekergo-T'].forEach((owner) => repos.push({ owner, repo }));
+  }
+
+  repos.push({ owner: 'stfnrpplngr', repo: 'TVData' });
+  repos.push({ owner: 'Tekergo-T', repo: 'TVData' });
+
+  return unique(repos.map(({ owner, repo }) => `${owner}/${repo}`));
+}
+
+const tablesBaseCandidates = (() => {
+  const candidates = [
+    '../tables',
+    '../../tables',
+    '/tables',
+    './remote/tables',
+    '../remote/tables',
+    '/remote/tables',
+  ];
+  githubReposFromLocation().forEach((repoPath) => {
+    candidates.push(`https://cdn.jsdelivr.net/gh/${repoPath}@main/tables`);
+    candidates.push(`https://cdn.jsdelivr.net/gh/${repoPath}@master/tables`);
+  });
+  return unique(candidates);
+})();
+let tablesBase = null;
+let tablesList = null;
+
 const toNum = (v) => {
   if (v == null || `${v}`.trim() === '') return null;
   return Number.parseFloat(`${v}`.replace(',', '.'));
@@ -48,15 +92,46 @@ async function fetchCSV(path) {
   return parseCSV(await res.text());
 }
 
-async function listTables() {
-  const res = await fetch('../../tables/index.json');
-  if (!res.ok) throw new Error('tables/index.json fehlt (für GH Pages bitte generieren)');
+async function fetchJSON(path) {
+  const res = await fetch(path);
+  if (!res.ok) throw new Error(`Fehler beim Laden: ${path}`);
   return await res.json();
+}
+
+async function probeTableIndex(candidate) {
+  try {
+    const data = await fetchJSON(`${candidate}/index.json`);
+    if (Array.isArray(data) && data.length > 0) return data;
+  } catch (_) {
+    // try next candidate
+  }
+  return null;
+}
+
+async function resolveTablesBase() {
+  if (tablesBase && tablesList) return tablesBase;
+
+  for (const candidate of tablesBaseCandidates) {
+    const list = await probeTableIndex(candidate);
+    if (list) {
+      tablesBase = candidate;
+      tablesList = list;
+      return tablesBase;
+    }
+  }
+
+  throw new Error(`tables/index.json fehlt oder ist leer. Geprüfte Pfade: ${tablesBaseCandidates.join(', ')}`);
+}
+
+async function listTables() {
+  await resolveTablesBase();
+  return tablesList;
 }
 
 async function loadTable(name) {
   if (cache.has(name)) return cache.get(name);
-  const base = `../../tables/${encodeURIComponent(name)}`;
+  const tableBase = await resolveTablesBase();
+  const base = `${tableBase}/${encodeURIComponent(name)}`;
   const [tableRows, advRows, metaRows] = await Promise.all([
     fetchCSV(`${base}/Table.csv`),
     fetchCSV(`${base}/Adv.csv`),
@@ -318,10 +393,15 @@ function renderLogic(base, target) {
   logicEl.innerHTML = `<table><thead><tr><th>Gruppe</th><th>Gesamtjahre Baseline</th><th>Gesamtjahre Vergleich</th><th>Differenz</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${r.g}</td><td>${fmt(r.a)}</td><td>${fmt(r.b)}</td><td>${fmt(r.d)}</td></tr>`).join('')}</tbody></table>`;
 }
 
+function allowanceBaseFromTablesBase() {
+  if (!tablesBase) return '../../allowances';
+  return tablesBase.replace(/\/tables$/, '/allowances');
+}
+
 async function loadAllowanceMeta(name) {
   const [metaRows, tableRows] = await Promise.all([
-    fetchCSV(`../../allowances/${name}/Meta.csv`),
-    fetchCSV(`../../allowances/${name}/Table.csv`),
+    fetchCSV(`${allowanceBaseFromTablesBase()}/${name}/Meta.csv`),
+    fetchCSV(`${allowanceBaseFromTablesBase()}/${name}/Table.csv`),
   ]);
   const meta = kvObject(metaRows);
   const values = tableRows.slice(1).flatMap((r) => r.slice(1)).map(toNum).filter((x) => x != null);

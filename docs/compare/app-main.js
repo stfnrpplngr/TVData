@@ -1,96 +1,39 @@
 (() => {
-const tableSelect = document.getElementById('tableSelect');
-const baselineSelect = document.getElementById('baselineSelect');
-const targetSelect = document.getElementById('targetSelect');
-const loadBtn = document.getElementById('loadBtn');
+const $ = (id) => document.getElementById(id);
 
-const metricsEl = document.getElementById('metrics');
-const pairKpisEl = document.getElementById('pairKpis');
-const heatmapEl = document.getElementById('heatmap');
-const groupBarsEl = document.getElementById('groupBars');
-const graphEl = document.getElementById('graph');
-const histEl = document.getElementById('hist');
-const logicEl = document.getElementById('logic');
-const allowancesEl = document.getElementById('allowances');
+const els = {
+  tariffASelect: $('tariffASelect'), tariffBSelect: $('tariffBSelect'), referenceMode: $('referenceMode'),
+  validityInfo: $('validityInfo'), versionInfo: $('versionInfo'),
+  groupFrom: $('groupFrom'), groupTo: $('groupTo'), stepFrom: $('stepFrom'), stepTo: $('stepTo'),
+  selectedGroups: $('selectedGroups'), includeBase: $('includeBase'), includeJsz: $('includeJsz'),
+  includeVwl: $('includeVwl'), includeAllowances: $('includeAllowances'),
+  timeMode: $('timeMode'), customDuration: $('customDuration'), argumentMode: $('argumentMode'),
+  applyBtn: $('applyBtn'),
+  kpiTiles: $('kpiTiles'), curvePlot: $('curvePlot'), differenceBand: $('differenceBand'),
+  detailGroupSelect: $('detailGroupSelect'), detailTable: $('detailTable'), microChart: $('microChart'),
+  detailHoverInfo: $('detailHoverInfo'), heatmapMode: $('heatmapMode'), heatmap: $('heatmap'),
+  simGroup: $('simGroup'), simStartStep: $('simStartStep'), simYears: $('simYears'), simWorkFactor: $('simWorkFactor'),
+  lifetimeChart: $('lifetimeChart'), lifetimeTable: $('lifetimeTable'), sources: $('sources'), governance: $('governance'),
+  exportCsv: $('exportCsv'), exportExcel: $('exportExcel'), exportPng: $('exportPng'),
+};
 
-const cache = new Map();
-
-const TABLE_BASE_CANDIDATES = [
-  '../tables',
-  '../../tables',
-  'https://raw.githubusercontent.com/stfnrpplngr/TVData/Comparing-Remuneration-Tables/tables',
+const REMOTE_TABLE_BASE_CANDIDATES = [
   'https://raw.githubusercontent.com/stfnrpplngr/TVData/main/tables',
+  'https://raw.githubusercontent.com/stfnrpplngr/TVData/Comparing-Remuneration-Tables/tables',
 ];
-
 let tablesBase = null;
-let tablesList = null;
-
-async function fetchJSON(path) {
-  const res = await fetch(path, { cache: 'no-store' });
-  if (!res.ok) throw new Error(`Fehler beim Laden: ${path}`);
-  return await res.json();
-}
-
-async function resolveTablesBase() {
-  if (tablesBase && tablesList) return tablesBase;
-
-  for (const candidate of TABLE_BASE_CANDIDATES) {
-    try {
-      const data = await fetchJSON(`${candidate}/index.json`);
-      if (!Array.isArray(data) || data.length === 0) continue;
-      tablesList = data.map((x) => `${x}`.trim()).filter(Boolean);
-      if (!tablesList.length) continue;
-      tablesBase = candidate;
-      return tablesBase;
-    } catch (_) {
-      // try next candidate
-    }
-  }
-
-  throw new Error(`tables/index.json fehlt oder ist leer. Geprüfte Pfade: ${TABLE_BASE_CANDIDATES.join(', ')}`);
-}
-
-async function listTables() {
-  await resolveTablesBase();
-  return tablesList;
-}
-
-async function fetchCSV(path) {
-  const res = await fetch(path, { cache: 'no-store' });
-  if (!res.ok) throw new Error(`Fehler beim Laden: ${path}`);
-  return parseCSV(await res.text());
-}
-
-async function loadTable(name) {
-  if (cache.has(name)) return cache.get(name);
-  const base = `${await resolveTablesBase()}/${encodeURIComponent(name)}`;
-  const [tableRows, advRows, metaRows] = await Promise.all([
-    fetchCSV(`${base}/Table.csv`),
-    fetchCSV(`${base}/Adv.csv`),
-    fetchCSV(`${base}/Meta.csv`),
-  ]);
-  const data = { name, table: gridObject(tableRows), adv: gridObject(advRows), meta: kvObject(metaRows) };
-  cache.set(name, data);
-  return data;
-}
+let tableList = [];
+const cache = new Map();
+let state = { filtered: [], pair: null, heatmapSvg: '' };
 
 const toNum = (v) => {
   if (v == null || `${v}`.trim() === '') return null;
   return Number.parseFloat(`${v}`.replace(',', '.'));
 };
+const fmt = (v, unit = ' €') => (v == null || Number.isNaN(v) ? '—' : `${v.toFixed(2)}${unit}`);
+const fmtPct = (v) => (v == null || Number.isNaN(v) ? '—' : `${v.toFixed(2)}%`);
 
-const fmt = (n, unit = '') => (n == null || Number.isNaN(n) ? '—' : `${n.toFixed(2)}${unit}`);
-
-function parseCSV(text) {
-  return text.trim().split(/\r?\n/).map((line) => line.split(','));
-}
-
-function kvObject(rows) {
-  const obj = {};
-  rows.slice(1).forEach((r) => { if (r.length > 1) obj[r[0]] = r[1]; });
-  return obj;
-}
-
+function parseCSV(text) { return text.trim().split(/\r?\n/).map((line) => line.split(',')); }
 function gridObject(rows) {
   const headers = rows[0].slice(1);
   const out = {};
@@ -101,332 +44,399 @@ function gridObject(rows) {
   });
   return out;
 }
+function kvObject(rows) { const o = {}; rows.slice(1).forEach((r) => { if (r.length > 1) o[r[0]] = r[1]; }); return o; }
 
-function selectedValues(select) {
-  return [...select.selectedOptions].map((o) => o.value);
+async function fetchJSON(url) { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error(url); return r.json(); }
+async function fetchCSV(url) { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error(url); return parseCSV(await r.text()); }
+
+function unique(values) {
+  return [...new Set(values.filter(Boolean))];
 }
 
-function quantile(sortedVals, q) {
-  if (!sortedVals.length) return null;
-  const pos = (sortedVals.length - 1) * q;
-  const base = Math.floor(pos);
-  const rest = pos - base;
-  const next = sortedVals[base + 1] ?? sortedVals[base];
-  return sortedVals[base] + rest * (next - sortedVals[base]);
-}
+function localTableBaseCandidates() {
+  const origin = window.location.origin;
+  const path = window.location.pathname;
+  const segments = path.split('/').filter(Boolean);
+  const docsIndex = segments.indexOf('docs');
+  const repoRoot = docsIndex >= 0 ? `/${segments.slice(0, docsIndex).join('/')}` : '';
+  const cwdBase = window.location.href.endsWith('/') ? window.location.href : `${window.location.href}/`;
 
-function stddev(vals, m) {
-  if (!vals.length) return 0;
-  const v = vals.reduce((acc, x) => acc + (x - m) ** 2, 0) / vals.length;
-  return Math.sqrt(v);
-}
-
-function collectSalaries(data) {
-  const vals = [];
-  Object.values(data.table).forEach((row) => Object.values(row).forEach((v) => {
-    const n = toNum(v);
-    if (n != null) vals.push(n);
-  }));
-  vals.sort((a, b) => a - b);
-  return vals;
-}
-
-function metrics(data) {
-  const vals = collectSalaries(data);
-  const sum = vals.reduce((a, b) => a + b, 0);
-  const mean = sum / vals.length;
-  const median = quantile(vals, 0.5);
-  const p10 = quantile(vals, 0.1);
-  const p90 = quantile(vals, 0.9);
-  const q1 = quantile(vals, 0.25);
-  const q3 = quantile(vals, 0.75);
-  const sd = stddev(vals, mean);
-  return {
-    count: vals.length,
-    mean,
-    median,
-    min: vals[0],
-    max: vals[vals.length - 1],
-    spread: vals[vals.length - 1] - vals[0],
-    p10,
-    p90,
-    iqr: q3 - q1,
-    stddev: sd,
-    cv: mean ? sd / mean : 0,
-  };
-}
-
-function pairedCells(base, target) {
-  const pairs = [];
-  Object.keys(base.table).forEach((group) => {
-    if (!target.table[group]) return;
-    Object.keys(base.table[group]).forEach((stage) => {
-      const a = toNum(base.table[group][stage]);
-      const b = toNum(target.table[group]?.[stage]);
-      if (a == null || b == null) return;
-      const delta = b - a;
-      const pct = a ? (delta / a) * 100 : 0;
-      pairs.push({ group, stage, base: a, target: b, delta, pct });
-    });
-  });
-  return pairs;
-}
-
-function correlation(xs, ys) {
-  const n = xs.length;
-  if (n === 0) return null;
-  const mx = xs.reduce((a, b) => a + b, 0) / n;
-  const my = ys.reduce((a, b) => a + b, 0) / n;
-  let num = 0; let dx = 0; let dy = 0;
-  for (let i = 0; i < n; i += 1) {
-    const xv = xs[i] - mx;
-    const yv = ys[i] - my;
-    num += xv * yv;
-    dx += xv * xv;
-    dy += yv * yv;
-  }
-  return dx && dy ? num / Math.sqrt(dx * dy) : null;
-}
-
-function renderMetrics(rows) {
-  metricsEl.innerHTML = `<table><thead><tr><th>Tabelle</th><th>Anzahl</th><th>Mittelwert</th><th>Median</th><th>P10</th><th>P90</th><th>Min</th><th>Max</th><th>Spreizung</th><th>IQR</th><th>StdAbw</th><th>CV</th></tr></thead><tbody>${rows.map((r) =>
-    `<tr><td>${r.name}</td><td>${r.m.count}</td><td>${fmt(r.m.mean)}</td><td>${fmt(r.m.median)}</td><td>${fmt(r.m.p10)}</td><td>${fmt(r.m.p90)}</td><td>${fmt(r.m.min)}</td><td>${fmt(r.m.max)}</td><td>${fmt(r.m.spread)}</td><td>${fmt(r.m.iqr)}</td><td>${fmt(r.m.stddev)}</td><td>${fmt(r.m.cv * 100, '%')}</td></tr>`).join('')}</tbody></table>`;
-}
-
-function renderPairKpis(base, target) {
-  const pairs = pairedCells(base, target);
-  const deltas = pairs.map((p) => p.delta);
-  const pcts = pairs.map((p) => p.pct).sort((a, b) => a - b);
-  const avgDelta = deltas.reduce((a, b) => a + b, 0) / deltas.length;
-  const avgPct = pcts.reduce((a, b) => a + b, 0) / pcts.length;
-  const medPct = quantile(pcts, 0.5);
-  const maxUp = deltas.length ? Math.max(...deltas) : null;
-  const maxDown = deltas.length ? Math.min(...deltas) : null;
-  const corr = correlation(pairs.map((p) => p.base), pairs.map((p) => p.target));
-
-  const cards = [
-    ['Gemeinsame Zellen', `${pairs.length}`],
-    ['Ø Differenz', fmt(avgDelta, ' €')],
-    ['Ø Differenz %', fmt(avgPct, '%')],
-    ['Median Differenz %', fmt(medPct, '%')],
-    ['Max. Anstieg', fmt(maxUp, ' €')],
-    ['Max. Rückgang', fmt(maxDown, ' €')],
-    ['Korrelation', fmt(corr)],
-  ];
-
-  pairKpisEl.innerHTML = cards.map(([k, v]) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
-}
-
-function heatColor(deltaPct) {
-  const v = Math.max(-10, Math.min(10, deltaPct));
-  if (v >= 0) return `hsl(5 ${50 + v * 4}% ${95 - v * 3}%)`;
-  return `hsl(210 ${50 + Math.abs(v) * 4}% ${95 - Math.abs(v) * 3}%)`;
-}
-
-function renderHeatmap(base, target) {
-  const groups = Object.keys(base.table).filter((g) => target.table[g]);
-  const stages = Object.keys(base.table[groups[0]] || {});
-  let body = '';
-  for (const g of groups) {
-    body += `<tr><td>${g}</td>`;
-    for (const s of stages) {
-      const a = toNum(base.table[g][s]);
-      const b = toNum(target.table[g]?.[s]);
-      if (a == null || b == null) { body += '<td></td>'; continue; }
-      const d = b - a;
-      const p = (d / a) * 100;
-      body += `<td class="heat" style="background:${heatColor(p)}" title="${d.toFixed(2)} EUR">${p.toFixed(2)}%</td>`;
-    }
-    body += '</tr>';
-  }
-  heatmapEl.innerHTML = `<table><thead><tr><th>Gruppe</th>${stages.map((s) => `<th>Stufe ${s}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
-}
-
-function renderGroupBars(base, target) {
-  const pairs = pairedCells(base, target);
-  const agg = new Map();
-  pairs.forEach((p) => {
-    const curr = agg.get(p.group) || { sum: 0, n: 0 };
-    curr.sum += p.pct;
-    curr.n += 1;
-    agg.set(p.group, curr);
-  });
-  const rows = [...agg.entries()].map(([group, v]) => ({ group, avgPct: v.sum / v.n }));
-  rows.sort((a, b) => b.avgPct - a.avgPct);
-  const maxAbs = Math.max(...rows.map((r) => Math.abs(r.avgPct)), 1);
-  const bar = (v) => `${(Math.abs(v) / maxAbs) * 45}%`;
-
-  groupBarsEl.innerHTML = `<table><thead><tr><th>Gruppe</th><th>Ø Differenz %</th><th>Visualisierung</th></tr></thead><tbody>${rows.map((r) => {
-    const positive = r.avgPct >= 0;
-    const color = positive ? '#dc2626' : '#2563eb';
-    return `<tr><td>${r.group}</td><td>${fmt(r.avgPct, '%')}</td><td><div style="display:flex;align-items:center;gap:6px;"><div style="width:45%;display:flex;justify-content:flex-end;"><div style="height:10px;background:${positive ? 'transparent' : color};width:${positive ? '0' : bar(r.avgPct)}"></div></div><div style="width:2px;height:14px;background:#9ca3af"></div><div style="width:45%;"><div style="height:10px;background:${positive ? color : 'transparent'};width:${positive ? bar(r.avgPct) : '0'}"></div></div></div></td></tr>`;
-  }).join('')}</tbody></table>`;
-}
-
-function progressionSeries(data, group) {
-  const row = data.table[group] || {};
-  const adv = data.adv[group] || {};
-  let year = 0;
-  const points = [];
-  Object.keys(row).forEach((stage) => {
-    const salary = toNum(row[stage]);
-    if (salary == null) return;
-    const duration = toNum(adv[stage]) ?? 0;
-    points.push({ stage, x: year, duration, y: salary });
-    year += duration;
-  });
-  return points;
-}
-
-function renderGraph(base, target) {
-  const groups = Object.keys(base.table).filter((g) => target.table[g]).slice(0, 8);
-  const colors = ['#2563eb', '#dc2626', '#059669', '#7c3aed', '#ea580c', '#0891b2', '#4f46e5', '#65a30d'];
-  const series = groups.map((g) => ({ group: g, base: progressionSeries(base, g), target: progressionSeries(target, g) }));
-  const all = series.flatMap((s) => [...s.base, ...s.target]);
-  if (!all.length) { graphEl.textContent = 'Keine gemeinsamen Daten.'; return; }
-
-  const maxX = Math.max(...all.map((p) => p.x)) || 1;
-  const minY = Math.min(...all.map((p) => p.y));
-  const maxY = Math.max(...all.map((p) => p.y));
-  const sx = (x) => 50 + (x / maxX) * 900;
-  const sy = (y) => 330 - ((y - minY) / (maxY - minY || 1)) * 280;
-
-  let paths = '';
-  let legend = '<div class="legend">';
-  series.forEach((s, i) => {
-    const c = colors[i % colors.length];
-    const toPath = (pts) => pts.map((p, idx) => `${idx ? 'L' : 'M'}${sx(p.x)},${sy(p.y)}`).join(' ');
-    paths += `<path d="${toPath(s.base)}" stroke="${c}" stroke-width="2" fill="none" />`;
-    paths += `<path d="${toPath(s.target)}" stroke="${c}" stroke-dasharray="6 4" stroke-width="2" fill="none" />`;
-    legend += `<span><span class="swatch" style="background:${c}"></span>${s.group} (voll=Baseline / gestrichelt=Vergleich)</span>`;
-  });
-  legend += '</div>';
-
-  graphEl.innerHTML = `${legend}<div class="graph-wrap"><svg viewBox="0 0 980 360"><line x1="50" y1="330" x2="950" y2="330" stroke="#9ca3af"/><line x1="50" y1="40" x2="50" y2="330" stroke="#9ca3af"/>${paths}</svg></div>`;
-}
-
-function renderHistogram(tables) {
-  const allVals = tables.map((t) => collectSalaries(t));
-  const min = Math.min(...allVals.flat());
-  const max = Math.max(...allVals.flat());
-  const bins = 12;
-  const width = (max - min) / bins || 1;
-  const palette = ['#2563eb', '#dc2626', '#059669', '#7c3aed', '#ea580c', '#0891b2'];
-
-  const countsByTable = allVals.map((vals) => {
-    const c = Array.from({ length: bins }, () => 0);
-    vals.forEach((v) => {
-      const idx = Math.min(bins - 1, Math.floor((v - min) / width));
-      c[idx] += 1;
-    });
-    return c;
-  });
-
-  const maxCount = Math.max(...countsByTable.flat(), 1);
-  let rects = '';
-  countsByTable.forEach((counts, ti) => {
-    counts.forEach((count, bi) => {
-      const x = 60 + bi * 70 + ti * (50 / countsByTable.length);
-      const w = 48 / countsByTable.length;
-      const h = (count / maxCount) * 260;
-      rects += `<rect x="${x}" y="${320 - h}" width="${w}" height="${h}" fill="${palette[ti % palette.length]}" opacity="0.65"/>`;
-    });
-  });
-
-  const legend = `<div class="legend">${tables.map((t, i) => `<span><span class="swatch" style="background:${palette[i % palette.length]}"></span>${t.name}</span>`).join('')}</div>`;
-  histEl.innerHTML = `${legend}<div class="chart-wrap"><svg viewBox="0 0 980 360"><line x1="50" y1="320" x2="940" y2="320" stroke="#9ca3af"/>${rects}</svg></div>`;
-}
-
-function renderLogic(base, target) {
-  const groups = Object.keys(base.adv).filter((g) => target.adv[g]);
-  const rows = [];
-  groups.forEach((g) => {
-    let a = 0; let b = 0;
-    Object.keys(base.adv[g]).forEach((s) => {
-      const av = toNum(base.adv[g][s]);
-      const bv = toNum(target.adv[g]?.[s]);
-      if (av != null) a += av;
-      if (bv != null) b += bv;
-    });
-    rows.push({ g, a, b, d: b - a });
-  });
-  logicEl.innerHTML = `<table><thead><tr><th>Gruppe</th><th>Gesamtjahre Baseline</th><th>Gesamtjahre Vergleich</th><th>Differenz</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${r.g}</td><td>${fmt(r.a)}</td><td>${fmt(r.b)}</td><td>${fmt(r.d)}</td></tr>`).join('')}</tbody></table>`;
-}
-
-function allowanceBaseFromTablesBase() {
-  if (!tablesBase) return '../../allowances';
-  return tablesBase.replace(/\/tables$/, '/allowances');
-}
-
-async function loadAllowanceMeta(name) {
-  const [metaRows, tableRows] = await Promise.all([
-    fetchCSV(`${allowanceBaseFromTablesBase()}/${name}/Meta.csv`),
-    fetchCSV(`${allowanceBaseFromTablesBase()}/${name}/Table.csv`),
+  return unique([
+    new URL('../tables', cwdBase).pathname,
+    new URL('../../tables', cwdBase).pathname,
+    '/tables',
+    `${repoRoot}/tables`,
+    `${origin}/tables`,
+    `${origin}${repoRoot}/tables`,
   ]);
-  const meta = kvObject(metaRows);
-  const values = tableRows.slice(1).flatMap((r) => r.slice(1)).map(toNum).filter((x) => x != null);
-  return {
-    name,
-    label: meta.label_de || meta.label_en || name,
-    addingType: meta.adding_type || '',
-    min: values.length ? Math.min(...values) : null,
-    max: values.length ? Math.max(...values) : null,
-  };
 }
 
-async function renderAllowances(tables) {
-  const lists = {};
-  for (const t of tables) {
-    const names = (t.meta.allowances || '').split(';').map((x) => x.trim()).filter(Boolean);
-    lists[t.name] = await Promise.all(names.map(loadAllowanceMeta));
+function tableBaseCandidates() {
+  return unique([...localTableBaseCandidates(), ...REMOTE_TABLE_BASE_CANDIDATES]);
+}
+
+async function resolveTablesBase() {
+  if (tablesBase) return tablesBase;
+  const attempts = [];
+  for (const base of tableBaseCandidates()) {
+    try {
+      const idx = await fetchJSON(`${base}/index.json`);
+      if (Array.isArray(idx) && idx.length) { tableList = idx; tablesBase = base; return base; }
+    } catch (err) {
+      attempts.push(`${base}/index.json`);
+      void err;
+    }
   }
-  const all = [...new Set(Object.values(lists).flat().map((a) => a.name))];
-  allowancesEl.innerHTML = `<table><thead><tr><th>Zulage</th>${tables.map((t) => `<th>${t.name}</th>`).join('')}</tr></thead><tbody>${all.map((name) => {
-    return `<tr><td>${name}</td>${tables.map((t) => {
-      const item = lists[t.name].find((x) => x.name === name);
-      return `<td>${item ? `${item.label}<br><small>${item.addingType}, ${fmt(item.min)}..${fmt(item.max)}</small>` : '—'}</td>`;
-    }).join('')}</tr>`;
+  throw new Error(`Konnte tables/index.json nicht laden. Geprüfte Pfade: ${attempts.join(' | ')}`);
+}
+
+async function loadTable(name) {
+  if (cache.has(name)) return cache.get(name);
+  const base = `${await resolveTablesBase()}/${encodeURIComponent(name)}`;
+  const [tableRows, advRows, metaRows] = await Promise.all([
+    fetchCSV(`${base}/Table.csv`), fetchCSV(`${base}/Adv.csv`), fetchCSV(`${base}/Meta.csv`),
+  ]);
+  const data = { name, table: gridObject(tableRows), adv: gridObject(advRows), meta: kvObject(metaRows) };
+  cache.set(name, data);
+  return data;
+}
+
+function groupNumber(group) {
+  const match = `${group}`.match(/\d+/);
+  return match ? Number.parseInt(match[0], 10) : null;
+}
+
+function extractRows(a, b) {
+  const rows = [];
+  Object.keys(a.table).forEach((group) => {
+    if (!b.table[group]) return;
+    const gNum = groupNumber(group);
+    Object.keys(a.table[group]).forEach((step) => {
+      const sNum = Number.parseInt(step, 10);
+      const av = toNum(a.table[group][step]);
+      const bv = toNum(b.table[group]?.[step]);
+      if (av == null || bv == null) return;
+      rows.push({ group, gNum, step, sNum, a: av, b: bv });
+    });
+  });
+  return rows;
+}
+
+function applyFilters(rows) {
+  const gFrom = Number(els.groupFrom.value) || 1;
+  const gTo = Number(els.groupTo.value) || 99;
+  const sFrom = Number(els.stepFrom.value) || 1;
+  const sTo = Number(els.stepTo.value) || 99;
+  const selected = els.selectedGroups.value.split(',').map((x) => Number.parseInt(x.trim(), 10)).filter(Number.isFinite);
+  return rows.filter((r) => {
+    const inRange = (r.gNum == null || (r.gNum >= gFrom && r.gNum <= gTo)) && r.sNum >= sFrom && r.sNum <= sTo;
+    return selected.length ? inRange && selected.includes(r.gNum) : inRange;
+  });
+}
+
+function deltaValues(r) {
+  const aMinusB = r.a - r.b;
+  const base = els.referenceMode.value === 'A_MINUS_B' ? r.b : r.a;
+  const signAdjusted = els.referenceMode.value === 'A_MINUS_B' ? aMinusB : -aMinusB;
+  return { abs: signAdjusted, rel: base ? (signAdjusted / base) * 100 : 0 };
+}
+
+function componentAdjustedMonthly(row, tariff) {
+  let total = 0;
+  if (els.includeBase.checked) total += tariff === 'A' ? row.a : row.b;
+  const meta = tariff === 'A' ? state.pair.a.meta : state.pair.b.meta;
+  if (els.includeVwl.checked) total += toNum(meta.vwl_amount_monthly) || 0;
+  if (els.includeAllowances.checked) total += toNum(meta.allowance_flat_monthly) || 0;
+  if (els.includeJsz.checked) {
+    const jszPct = toNum(meta.jsz_percent) || 0;
+    total += ((tariff === 'A' ? row.a : row.b) * (jszPct / 100)) / 12;
+  }
+  return total;
+}
+
+function getDuration(group, step, tariffData) {
+  const mode = els.timeMode.value;
+  if (mode === 'custom') return Number(els.customDuration.value) || 2;
+  if (mode === 'standard') return 2;
+  return toNum(tariffData.adv[group]?.[step]) || 2;
+}
+
+function renderOverview(rows) {
+  const deltas = rows.map(deltaValues);
+  const maxAbs = deltas.reduce((m, d) => Math.max(m, Math.abs(d.abs)), 0);
+  const maxRel = deltas.reduce((m, d) => Math.max(m, Math.abs(d.rel)), 0);
+  const byStep = new Map();
+  rows.forEach((r) => {
+    const item = byStep.get(r.step) || { a: 0, b: 0, n: 0, diff: 0 };
+    item.a += r.a; item.b += r.b; item.n += 1; item.diff += deltaValues(r).abs;
+    byStep.set(r.step, item);
+  });
+  const stepRows = [...byStep.entries()].map(([step, v]) => ({ step, a: v.a / v.n, b: v.b / v.n, d: v.diff / v.n }));
+  const stepSorted = stepRows.sort((x, y) => Number(x.step) - Number(y.step));
+  const last = stepSorted[stepSorted.length - 1];
+  const first = stepSorted[0];
+  const spreadA = last ? last.a - first.a : 0;
+  const spreadB = last ? last.b - first.b : 0;
+  const avgIncA = stepSorted.length > 1 ? spreadA / (stepSorted.length - 1) : 0;
+  const avgIncB = stepSorted.length > 1 ? spreadB / (stepSorted.length - 1) : 0;
+
+  const arg = argumentInsights(rows);
+  els.kpiTiles.innerHTML = [
+    ['Max Betrag Tarif A', fmt(Math.max(...rows.map((r) => r.a)))],
+    ['Max Betrag Tarif B', fmt(Math.max(...rows.map((r) => r.b)))],
+    ['Spreizung Stufe 1 bis Endstufe (A/B)', `${fmt(spreadA)} / ${fmt(spreadB)}`],
+    ['Mittlere Steigerung je Stufe (A/B)', `${fmt(avgIncA)} / ${fmt(avgIncB)}`],
+    ['Größte Abweichung absolut', fmt(maxAbs)],
+    ['Größte Abweichung relativ', fmtPct(maxRel)],
+    ...(els.argumentMode.checked ? [['Größte Verlierer EGs', arg.losers], ['Größte Gewinner EGs', arg.winners], ['Einstieg vs Langjährig', arg.entryVsSenior]] : []),
+  ].map(([k, v]) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+
+  const maxY = Math.max(...stepSorted.flatMap((r) => [r.a, r.b])) || 1;
+  const minY = Math.min(...stepSorted.flatMap((r) => [r.a, r.b])) || 0;
+  const sx = (i) => 60 + (i / Math.max(stepSorted.length - 1, 1)) * 900;
+  const sy = (v) => 260 - ((v - minY) / Math.max(maxY - minY, 1)) * 210;
+  const path = (key) => stepSorted.map((r, i) => `${i ? 'L' : 'M'}${sx(i)},${sy(r[key])}`).join(' ');
+  const circles = (key, c) => stepSorted.map((r, i) => `<circle cx="${sx(i)}" cy="${sy(r[key])}" r="4" fill="${c}"><title>Stufe ${r.step}: ${fmt(r[key])}</title></circle>`).join('');
+  els.curvePlot.innerHTML = `<svg viewBox="0 0 980 280"><line x1="50" y1="260" x2="960" y2="260" stroke="#9aaccc"/><path d="${path('a')}" stroke="#1d4ed8" fill="none" stroke-width="3"/><path d="${path('b')}" stroke="#d32f2f" fill="none" stroke-width="3"/>${circles('a', '#1d4ed8')}${circles('b', '#d32f2f')}</svg>`;
+
+  const maxBand = Math.max(...stepSorted.map((r) => Math.abs(r.d)), 1);
+  els.differenceBand.innerHTML = `<svg viewBox="0 0 980 220"><line x1="50" y1="110" x2="960" y2="110" stroke="#9aaccc"/>${stepSorted.map((r, i) => {
+    const h = (Math.abs(r.d) / maxBand) * 90;
+    const y = r.d >= 0 ? 110 - h : 110;
+    const c = r.d >= 0 ? '#d32f2f' : '#1d4ed8';
+    return `<rect x="${sx(i) - 16}" y="${y}" width="32" height="${h}" fill="${c}"><title>Stufe ${r.step}: ${fmt(r.d)}</title></rect>`;
+  }).join('')}</svg>`;
+}
+
+function argumentInsights(rows) {
+  const byGroup = new Map();
+  rows.forEach((r) => {
+    const d = deltaValues(r).abs;
+    const e = byGroup.get(r.group) || { sum: 0, n: 0, start: null, end: null };
+    e.sum += d; e.n += 1;
+    if (r.sNum === 1) e.start = d;
+    e.end = d;
+    byGroup.set(r.group, e);
+  });
+  const arr = [...byGroup.entries()].map(([g, v]) => ({ group: g, avg: v.sum / v.n, start: v.start ?? 0, end: v.end ?? 0 }));
+  arr.sort((a, b) => b.avg - a.avg);
+  const winners = arr.slice(0, 3).map((x) => x.group).join(', ') || '—';
+  const losers = arr.slice(-3).map((x) => x.group).join(', ') || '—';
+  const entryVsSenior = arr.length ? `${fmt(arr[0].start)} vs ${fmt(arr[0].end)}` : '—';
+  return { winners, losers, entryVsSenior };
+}
+
+function renderDetail(rows) {
+  const groups = [...new Set(rows.map((r) => r.group))];
+  const current = els.detailGroupSelect.value && groups.includes(els.detailGroupSelect.value) ? els.detailGroupSelect.value : groups[0];
+  els.detailGroupSelect.innerHTML = groups.map((g) => `<option value="${g}">${g}</option>`).join('');
+  els.detailGroupSelect.value = current;
+  els.simGroup.innerHTML = els.detailGroupSelect.innerHTML;
+  const groupRows = rows.filter((r) => r.group === current).sort((a, b) => a.sNum - b.sNum);
+
+  els.detailTable.innerHTML = `<table><thead><tr><th>Stufe</th><th>Tarif A</th><th>Tarif B</th><th>Differenz abs.</th><th>Differenz rel.</th></tr></thead><tbody>${groupRows.map((r) => {
+    const d = deltaValues(r);
+    const yearlyA = componentAdjustedMonthly(r, 'A') * 12;
+    const yearlyB = componentAdjustedMonthly(r, 'B') * 12;
+    const rounded = (Math.round(r.a) === r.a || Math.round(r.b) === r.b) ? 'Rundungsartefakt möglich' : 'keine auffällige Rundung';
+    const tooltip = `${rounded}; Laufzeit A=${getDuration(r.group, r.step, state.pair.a)} Jahre, B=${getDuration(r.group, r.step, state.pair.b)} Jahre; Jahresbrutto A=${fmt(yearlyA, ' €')}, B=${fmt(yearlyB, ' €')}`;
+    return `<tr><td>${r.step}</td><td>${fmt(r.a)}</td><td>${fmt(r.b)}</td><td class="${d.abs >= 0 ? 'positive' : 'negative'}" data-tip="${tooltip}">${fmt(d.abs)}</td><td>${fmtPct(d.rel)}</td></tr>`;
   }).join('')}</tbody></table>`;
+
+  els.detailTable.querySelectorAll('[data-tip]').forEach((cell) => {
+    cell.addEventListener('mouseenter', () => { els.detailHoverInfo.textContent = cell.dataset.tip; });
+  });
+
+  const prog = groupRows.slice(1).map((r, i) => {
+    const prev = groupRows[i];
+    return { s: r.step, a: ((r.a - prev.a) / prev.a) * 100, b: ((r.b - prev.b) / prev.b) * 100 };
+  });
+  const sx = (i) => 70 + (i / Math.max(prog.length - 1, 1)) * 860;
+  const maxY = Math.max(...prog.flatMap((x) => [x.a, x.b]), 0) + 1;
+  const sy = (v) => 230 - (v / maxY) * 180;
+  const path = (k) => prog.map((r, i) => `${i ? 'L' : 'M'}${sx(i)},${sy(r[k])}`).join(' ');
+  els.microChart.innerHTML = `<svg viewBox="0 0 980 260"><line x1="50" y1="230" x2="950" y2="230" stroke="#9aaccc"/><path d="${path('a')}" stroke="#1d4ed8" fill="none" stroke-width="3"/><path d="${path('b')}" stroke="#d32f2f" fill="none" stroke-width="3"/></svg>`;
 }
 
-async function runComparison() {
-  const selected = selectedValues(tableSelect);
-  if (selected.length < 2) return;
-  const baseline = baselineSelect.value;
-  const target = targetSelect.value;
-  const data = await Promise.all(selected.map(loadTable));
-  const byName = Object.fromEntries(data.map((d) => [d.name, d]));
-
-  renderMetrics(data.map((d) => ({ name: d.name, m: metrics(d) })));
-  renderPairKpis(byName[baseline], byName[target]);
-  renderHeatmap(byName[baseline], byName[target]);
-  renderGroupBars(byName[baseline], byName[target]);
-  renderGraph(byName[baseline], byName[target]);
-  renderHistogram(data);
-  renderLogic(byName[baseline], byName[target]);
-  await renderAllowances(data);
+function renderHeatmap(rows) {
+  const groups = [...new Set(rows.map((r) => r.group))];
+  const steps = [...new Set(rows.map((r) => r.step))].sort((a, b) => Number(a) - Number(b));
+  const mode = els.heatmapMode.value;
+  const values = rows.map((r) => (mode === 'abs' ? deltaValues(r).abs : deltaValues(r).rel));
+  const range = Math.max(...values.map((v) => Math.abs(v)), 1);
+  const cellW = 70; const cellH = 36;
+  let rects = '';
+  groups.forEach((g, gi) => {
+    steps.forEach((s, si) => {
+      const row = rows.find((r) => r.group === g && r.step === s);
+      if (!row) return;
+      const val = mode === 'abs' ? deltaValues(row).abs : deltaValues(row).rel;
+      const ratio = Math.abs(val) / range;
+      const hue = val >= 0 ? 5 : 215;
+      const fill = `hsl(${hue} ${55 + ratio * 35}% ${94 - ratio * 35}%)`;
+      const x = 120 + si * cellW;
+      const y = 30 + gi * cellH;
+      rects += `<rect class="heatcell" data-group="${g}" x="${x}" y="${y}" width="${cellW - 2}" height="${cellH - 2}" fill="${fill}"/><text x="${x + (cellW / 2)}" y="${y + 21}" text-anchor="middle" font-size="11">${val.toFixed(mode === 'abs' ? 0 : 1)}</text>`;
+    });
+  });
+  const labels = groups.map((g, gi) => `<text x="8" y="${54 + gi * cellH}" font-size="12">${g}</text>`).join('') + steps.map((s, si) => `<text x="${145 + si * cellW}" y="20" font-size="12">St ${s}</text>`).join('');
+  const width = 160 + steps.length * cellW;
+  const height = 60 + groups.length * cellH;
+  const svg = `<svg viewBox="0 0 ${width} ${height}">${labels}${rects}</svg>`;
+  state.heatmapSvg = svg;
+  els.heatmap.innerHTML = svg;
+  els.heatmap.querySelectorAll('.heatcell').forEach((c) => c.addEventListener('click', () => {
+    els.detailGroupSelect.value = c.dataset.group;
+    renderDetail(rows);
+    document.getElementById('detailSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }));
 }
 
-function syncSelectors() {
-  const selected = selectedValues(tableSelect);
-  baselineSelect.innerHTML = selected.map((x) => `<option value="${x}">${x}</option>`).join('');
-  targetSelect.innerHTML = selected.map((x) => `<option value="${x}">${x}</option>`).join('');
-  if (selected.length > 1) targetSelect.value = selected[1];
+function simulate(rows) {
+  const group = els.simGroup.value || rows[0]?.group;
+  const years = Number(els.simYears.value) || 10;
+  const startStep = Number(els.simStartStep.value) || 1;
+  const factor = Number(els.simWorkFactor.value) || 1;
+  const groupRows = rows.filter((r) => r.group === group).sort((a, b) => a.sNum - b.sNum);
+  let stepIndex = Math.max(0, startStep - 1);
+  let cumA = 0; let cumB = 0; let acc = [];
+  let remaining = getDuration(group, `${stepIndex + 1}`, state.pair.a);
+  for (let y = 1; y <= years; y += 1) {
+    const r = groupRows[Math.min(stepIndex, groupRows.length - 1)];
+    const annualA = componentAdjustedMonthly(r, 'A') * 12 * factor;
+    const annualB = componentAdjustedMonthly(r, 'B') * 12 * factor;
+    cumA += annualA; cumB += annualB;
+    acc.push({ year: y, step: r.step, annualA, annualB, diff: annualA - annualB, cumA, cumB, cumDiff: cumA - cumB });
+    remaining -= 1;
+    if (remaining <= 0 && stepIndex < groupRows.length - 1) {
+      stepIndex += 1;
+      remaining = getDuration(group, `${stepIndex + 1}`, state.pair.a);
+    }
+  }
+  return acc;
+}
+
+function renderSimulation(rows) {
+  const sim = simulate(rows);
+  const maxY = Math.max(...sim.flatMap((r) => [r.cumA, r.cumB])) || 1;
+  const sx = (i) => 60 + (i / Math.max(sim.length - 1, 1)) * 900;
+  const sy = (v) => 260 - (v / maxY) * 220;
+  const path = (key) => sim.map((r, i) => `${i ? 'L' : 'M'}${sx(i)},${sy(r[key])}`).join(' ');
+  els.lifetimeChart.innerHTML = `<svg viewBox="0 0 980 290"><line x1="50" y1="260" x2="950" y2="260" stroke="#9aaccc"/><path d="${path('cumA')}" stroke="#1d4ed8" fill="none" stroke-width="3"/><path d="${path('cumB')}" stroke="#d32f2f" fill="none" stroke-width="3"/><path d="${path('cumDiff')}" stroke="#0f8a5f" fill="none" stroke-width="2" stroke-dasharray="6 4"/></svg>`;
+  els.lifetimeTable.innerHTML = `<table><thead><tr><th>Jahr</th><th>Stufe</th><th>Jahresbrutto A</th><th>Jahresbrutto B</th><th>Differenz</th></tr></thead><tbody>${sim.map((r) => `<tr><td>${r.year}</td><td>${r.step}</td><td>${fmt(r.annualA)}</td><td>${fmt(r.annualB)}</td><td>${fmt(r.diff)}</td></tr>`).join('')}</tbody></table>`;
+}
+
+function qualityChecks(rows) {
+  const byGroup = new Map();
+  rows.forEach((r) => {
+    const list = byGroup.get(r.group) || [];
+    list.push(r);
+    byGroup.set(r.group, list);
+  });
+  let monotone = true; let outliers = 0; let rounded = 0;
+  byGroup.forEach((list) => {
+    list.sort((a, b) => a.sNum - b.sNum);
+    for (let i = 1; i < list.length; i += 1) {
+      if (list[i].a < list[i - 1].a || list[i].b < list[i - 1].b) monotone = false;
+      if (Math.abs(list[i].a - list[i - 1].a) > 800 || Math.abs(list[i].b - list[i - 1].b) > 800) outliers += 1;
+    }
+    list.forEach((r) => { if (Math.round(r.a) === r.a || Math.round(r.b) === r.b) rounded += 1; });
+  });
+  return { monotone, outliers, rounded };
+}
+
+function renderSources(rows) {
+  const { a, b } = state.pair;
+  const q = qualityChecks(rows);
+  els.validityInfo.textContent = `Gültigkeitsstand: A=${a.meta.valid_from || 'n/a'} • B=${b.meta.valid_from || 'n/a'} • Quelle: ${a.meta.source_url || 'n/a'}`;
+  els.versionInfo.textContent = `Version: A=${a.meta.version || a.name} • B=${b.meta.version || b.name}`;
+  els.sources.innerHTML = `<table><thead><tr><th>Tarif</th><th>Quellen</th><th>Abgeleitet/Original</th><th>Hinweise</th></tr></thead><tbody>
+    <tr><td>${a.name}</td><td>${a.meta.source_url || '—'}</td><td>${a.meta.derived === 'true' ? 'abgeleitet' : 'original/unklar'}</td><td>${a.meta.notes || '—'}</td></tr>
+    <tr><td>${b.name}</td><td>${b.meta.source_url || '—'}</td><td>${b.meta.derived === 'true' ? 'abgeleitet' : 'original/unklar'}</td><td>${b.meta.notes || '—'}</td></tr>
+  </tbody></table>`;
+  els.governance.innerHTML = `<div class="cards">
+    <div class="card"><div class="k">Monotone Steigerung geprüft</div><div class="v">${q.monotone ? 'Ja' : 'Auffällig'}</div></div>
+    <div class="card"><div class="k">Ausreißer markiert</div><div class="v">${q.outliers}</div></div>
+    <div class="card"><div class="k">Rundungsartefakte markiert</div><div class="v">${q.rounded}</div></div>
+    <div class="card"><div class="k">Änderungsverlauf</div><div class="v">${a.meta.commit_hash || 'n/a'} / ${b.meta.commit_hash || 'n/a'}</div></div>
+  </div>`;
+}
+
+function exportDetail(asExcel = false) {
+  const rows = state.filtered;
+  if (!rows.length) return;
+  const data = [['group', 'step', 'tariff_a', 'tariff_b', 'delta_abs', 'delta_rel']]
+    .concat(rows.map((r) => {
+      const d = deltaValues(r);
+      return [r.group, r.step, r.a.toFixed(2), r.b.toFixed(2), d.abs.toFixed(2), d.rel.toFixed(4)];
+    }));
+  const sep = asExcel ? '\t' : ',';
+  const mime = asExcel ? 'application/vnd.ms-excel' : 'text/csv;charset=utf-8';
+  const blob = new Blob([data.map((r) => r.join(sep)).join('\n')], { type: mime });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = asExcel ? 'tarifvergleich.xls' : 'tarifvergleich.csv';
+  a.click();
+}
+
+function exportHeatmapPng() {
+  if (!state.heatmapSvg) return;
+  const svg = new Blob([state.heatmapSvg], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(svg);
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width || 1200;
+    canvas.height = img.height || 800;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+    canvas.toBlob((blob) => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'heatmap.png';
+      a.click();
+    });
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+}
+
+async function refresh() {
+  const [a, b] = await Promise.all([loadTable(els.tariffASelect.value), loadTable(els.tariffBSelect.value)]);
+  state.pair = { a, b };
+  const filtered = applyFilters(extractRows(a, b));
+  state.filtered = filtered;
+  if (!filtered.length) {
+    els.kpiTiles.innerHTML = '<div class="card">Keine Daten nach Filterung.</div>';
+    return;
+  }
+  renderOverview(filtered);
+  renderDetail(filtered);
+  renderHeatmap(filtered);
+  renderSimulation(filtered);
+  renderSources(filtered);
 }
 
 async function init() {
-  tableSelect.innerHTML = '<option>Lade Tabellen ...</option>';
-  const tables = await listTables();
-  if (!tables.length) throw new Error('Keine Tabellen gefunden (index.json enthält keine Einträge).');
-  tableSelect.innerHTML = tables.map((t) => `<option value="${t}">${t}</option>`).join('');
-  [...tableSelect.options].slice(0, 3).forEach((o) => { o.selected = true; });
-  syncSelectors();
+  await resolveTablesBase();
+  if (!tableList.length) throw new Error('Keine Tabellen in index.json');
+  const options = tableList.map((n) => `<option value="${n}">${n}</option>`).join('');
+  els.tariffASelect.innerHTML = options;
+  els.tariffBSelect.innerHTML = options;
+  els.tariffASelect.value = tableList[0];
+  els.tariffBSelect.value = tableList[1] || tableList[0];
+  await refresh();
 }
 
-tableSelect.addEventListener('change', syncSelectors);
-loadBtn.addEventListener('click', runComparison);
+[els.applyBtn, els.tariffASelect, els.tariffBSelect, els.referenceMode, els.heatmapMode, els.detailGroupSelect, els.simGroup]
+  .forEach((el) => el.addEventListener('change', refresh));
+els.exportCsv.addEventListener('click', () => exportDetail(false));
+els.exportExcel.addEventListener('click', () => exportDetail(true));
+els.exportPng.addEventListener('click', exportHeatmapPng);
 
 init().catch((err) => {
-  document.body.innerHTML = `<pre>Fehler: ${err.message}</pre>`;
+  document.body.innerHTML = `<pre>Fehler beim Initialisieren: ${err.message}</pre>`;
 });
 })();

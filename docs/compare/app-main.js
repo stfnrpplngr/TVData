@@ -17,10 +17,7 @@ const els = {
   exportCsv: $('exportCsv'), exportExcel: $('exportExcel'), exportPng: $('exportPng'),
 };
 
-const REMOTE_TABLE_BASE_CANDIDATES = [
-  'https://raw.githubusercontent.com/stfnrpplngr/TVData/main/tables',
-  'https://raw.githubusercontent.com/stfnrpplngr/TVData/Comparing-Remuneration-Tables/tables',
-];
+const TABLE_BASE_CANDIDATES = ['../tables', '../../tables', 'https://raw.githubusercontent.com/stfnrpplngr/TVData/main/tables'];
 let tablesBase = null;
 let tableList = [];
 const cache = new Map();
@@ -49,45 +46,15 @@ function kvObject(rows) { const o = {}; rows.slice(1).forEach((r) => { if (r.len
 async function fetchJSON(url) { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error(url); return r.json(); }
 async function fetchCSV(url) { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error(url); return parseCSV(await r.text()); }
 
-function unique(values) {
-  return [...new Set(values.filter(Boolean))];
-}
-
-function localTableBaseCandidates() {
-  const origin = window.location.origin;
-  const path = window.location.pathname;
-  const segments = path.split('/').filter(Boolean);
-  const docsIndex = segments.indexOf('docs');
-  const repoRoot = docsIndex >= 0 ? `/${segments.slice(0, docsIndex).join('/')}` : '';
-  const cwdBase = window.location.href.endsWith('/') ? window.location.href : `${window.location.href}/`;
-
-  return unique([
-    new URL('../tables', cwdBase).pathname,
-    new URL('../../tables', cwdBase).pathname,
-    '/tables',
-    `${repoRoot}/tables`,
-    `${origin}/tables`,
-    `${origin}${repoRoot}/tables`,
-  ]);
-}
-
-function tableBaseCandidates() {
-  return unique([...localTableBaseCandidates(), ...REMOTE_TABLE_BASE_CANDIDATES]);
-}
-
 async function resolveTablesBase() {
   if (tablesBase) return tablesBase;
-  const attempts = [];
-  for (const base of tableBaseCandidates()) {
+  for (const base of TABLE_BASE_CANDIDATES) {
     try {
       const idx = await fetchJSON(`${base}/index.json`);
       if (Array.isArray(idx) && idx.length) { tableList = idx; tablesBase = base; return base; }
-    } catch (err) {
-      attempts.push(`${base}/index.json`);
-      void err;
-    }
+    } catch (_) { }
   }
-  throw new Error(`Konnte tables/index.json nicht laden. Geprüfte Pfade: ${attempts.join(' | ')}`);
+  throw new Error('Konnte tables/index.json nicht laden.');
 }
 
 async function loadTable(name) {
@@ -420,7 +387,7 @@ async function refresh() {
 }
 
 async function init() {
-  await resolveTablesBase();
+  const base = await resolveTablesBase();
   if (!tableList.length) throw new Error('Keine Tabellen in index.json');
   const options = tableList.map((n) => `<option value="${n}">${n}</option>`).join('');
   els.tariffASelect.innerHTML = options;

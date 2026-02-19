@@ -17,7 +17,24 @@ const els = {
   exportCsv: $('exportCsv'), exportExcel: $('exportExcel'), exportPng: $('exportPng'),
 };
 
-const TABLE_BASE_CANDIDATES = ['../tables', '../../tables', 'https://raw.githubusercontent.com/stfnrpplngr/TVData/main/tables'];
+function unique(items) {
+  return [...new Set(items.filter(Boolean))];
+}
+
+function tableBaseCandidatesFromLocation() {
+  const path = window.location.pathname.split('/').filter(Boolean);
+  const repoName = path.length ? path[0] : '';
+  return unique([
+    '../tables',
+    '../../tables',
+    '/tables',
+    repoName ? `/${repoName}/tables` : '',
+    'https://cdn.jsdelivr.net/gh/stfnrpplngr/TVData@main/tables',
+    'https://raw.githubusercontent.com/stfnrpplngr/TVData/main/tables',
+  ]);
+}
+
+const TABLE_BASE_CANDIDATES = tableBaseCandidatesFromLocation();
 let tablesBase = null;
 let tableList = [];
 const cache = new Map();

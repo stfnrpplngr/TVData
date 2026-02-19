@@ -26,6 +26,23 @@
           Tarif B
           <select id="tariffBSelect"></select>
         </label>
+        <div class="meta-block">
+          <div id="validityInfo" class="meta-line">Gültigkeitsstand: —</div>
+          <div id="versionInfo" class="meta-line">Version: —</div>
+        </div>
+        <div class="export-row">
+          <button id="exportCsv">CSV</button>
+          <button id="exportExcel">Excel</button>
+          <button id="exportPng">PNG</button>
+        </div>
+      </header>
+
+      <aside class="sidebar panel">
+        <h2>Filter & Logik</h2>
+        <label>Entgeltgruppe von <input id="groupFrom" type="number" min="1" value="1" /></label>
+        <label>Entgeltgruppe bis <input id="groupTo" type="number" min="1" value="15" /></label>
+        <label>Stufe von <input id="stepFrom" type="number" min="1" value="1" /></label>
+        <label>Stufe bis <input id="stepTo" type="number" min="1" value="6" /></label>
         <label>
           Referenz
           <select id="referenceMode">

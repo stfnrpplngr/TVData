@@ -13,6 +13,22 @@ const logicEl = document.getElementById('logic');
 const allowancesEl = document.getElementById('allowances');
 
 const cache = new Map();
+const tablesBaseCandidates = (() => {
+  const candidates = ['../tables', '../../tables'];
+  const { hostname, pathname } = window.location;
+
+  if (hostname.endsWith('github.io')) {
+    const owner = hostname.split('.')[0];
+    const [repo] = pathname.split('/').filter(Boolean);
+    if (owner && repo) {
+      candidates.push(`https://cdn.jsdelivr.net/gh/${owner}/${repo}@main/tables`);
+      candidates.push(`https://cdn.jsdelivr.net/gh/${owner}/${repo}@master/tables`);
+    }
+  }
+
+  return candidates;
+})();
+let tablesBase = null;
 
 const toNum = (v) => {
   if (v == null || `${v}`.trim() === '') return null;
@@ -48,15 +64,35 @@ async function fetchCSV(path) {
   return parseCSV(await res.text());
 }
 
-async function listTables() {
-  const res = await fetch('../../tables/index.json');
-  if (!res.ok) throw new Error('tables/index.json fehlt (für GH Pages bitte generieren)');
+async function fetchJSON(path) {
+  const res = await fetch(path);
+  if (!res.ok) throw new Error(`Fehler beim Laden: ${path}`);
   return await res.json();
+}
+
+async function resolveTablesBase() {
+  if (tablesBase) return tablesBase;
+
+  for (const candidate of tablesBaseCandidates) {
+    const res = await fetch(`${candidate}/index.json`);
+    if (res.ok) {
+      tablesBase = candidate;
+      return tablesBase;
+    }
+  }
+
+  throw new Error('tables/index.json fehlt (lokal unter docs/tables oder im Repository über CDN erreichbar)');
+}
+
+async function listTables() {
+  const base = await resolveTablesBase();
+  return fetchJSON(`${base}/index.json`);
 }
 
 async function loadTable(name) {
   if (cache.has(name)) return cache.get(name);
-  const base = `../../tables/${encodeURIComponent(name)}`;
+  const tableBase = await resolveTablesBase();
+  const base = `${tableBase}/${encodeURIComponent(name)}`;
   const [tableRows, advRows, metaRows] = await Promise.all([
     fetchCSV(`${base}/Table.csv`),
     fetchCSV(`${base}/Adv.csv`),

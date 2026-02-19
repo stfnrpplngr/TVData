@@ -29,10 +29,8 @@ function tableBaseCandidatesFromLocation() {
     '../../tables',
     '/tables',
     repoName ? `/${repoName}/tables` : '',
-    'https://raw.githubusercontent.com/stfnrpplngr/TVData/Comparing-Remuneration-Tables/tables',
-    'https://raw.githubusercontent.com/stfnrpplngr/TVData/main/tables',
-    'https://cdn.jsdelivr.net/gh/stfnrpplngr/TVData@Comparing-Remuneration-Tables/tables',
     'https://cdn.jsdelivr.net/gh/stfnrpplngr/TVData@main/tables',
+    'https://raw.githubusercontent.com/stfnrpplngr/TVData/main/tables',
   ]);
 }
 

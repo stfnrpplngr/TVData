@@ -335,6 +335,54 @@ globalThis.__tvdataTablesBaseCandidates = tablesBaseCandidates;
 var tablesBase = globalThis.__tvdataTablesBase || null;
 var tablesList = globalThis.__tvdataTablesList || null;
 
+function unique(values) {
+  return [...new Set(values.filter(Boolean))];
+}
+
+function githubReposFromLocation() {
+  const repos = [];
+  const { hostname, pathname } = window.location;
+
+  if (hostname.endsWith('github.io')) {
+    const owner = hostname.split('.')[0];
+    const [repo] = pathname.split('/').filter(Boolean);
+    if (owner && repo) repos.push({ owner, repo });
+  }
+
+  const pathSegments = pathname.split('/').filter(Boolean);
+  if (pathSegments.length >= 2) {
+    const [repo] = pathSegments;
+    ['stfnrpplngr', 'Tekergo-T'].forEach((owner) => repos.push({ owner, repo }));
+  }
+
+  repos.push({ owner: 'stfnrpplngr', repo: 'TVData' });
+  repos.push({ owner: 'Tekergo-T', repo: 'TVData' });
+
+  return unique(repos.map(({ owner, repo }) => `${owner}/${repo}`));
+}
+
+var tablesBaseCandidates = globalThis.__tvdataTablesBaseCandidates || (() => {
+  const candidates = [
+    '../tables',
+    '../../tables',
+    '/tables',
+    './remote/tables',
+    '../remote/tables',
+    '/remote/tables',
+  ];
+  const branches = ['Comparing-Remuneration-Tables', 'main', 'master'];
+  githubReposFromLocation().forEach((repoPath) => {
+    branches.forEach((branch) => {
+      candidates.push(`https://cdn.jsdelivr.net/gh/${repoPath}@${branch}/tables`);
+      candidates.push(`https://raw.githubusercontent.com/${repoPath}/${branch}/tables`);
+    });
+  });
+  return unique(candidates);
+})();
+globalThis.__tvdataTablesBaseCandidates = tablesBaseCandidates;
+var tablesBase = globalThis.__tvdataTablesBase || null;
+var tablesList = globalThis.__tvdataTablesList || null;
+
 const toNum = (v) => {
   if (v == null || `${v}`.trim() === '') return null;
   return Number.parseFloat(`${v}`.replace(',', '.'));

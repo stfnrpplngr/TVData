@@ -50,9 +50,12 @@ var tablesBaseCandidates = globalThis.__tvdataTablesBaseCandidates || (() => {
     '../remote/tables',
     '/remote/tables',
   ];
+  const branches = ['Comparing-Remuneration-Tables', 'main', 'master'];
   githubReposFromLocation().forEach((repoPath) => {
-    candidates.push(`https://cdn.jsdelivr.net/gh/${repoPath}@main/tables`);
-    candidates.push(`https://cdn.jsdelivr.net/gh/${repoPath}@master/tables`);
+    branches.forEach((branch) => {
+      candidates.push(`https://cdn.jsdelivr.net/gh/${repoPath}@${branch}/tables`);
+      candidates.push(`https://raw.githubusercontent.com/${repoPath}/${branch}/tables`);
+    });
   });
   return unique(candidates);
 })();

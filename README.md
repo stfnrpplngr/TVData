@@ -525,7 +525,7 @@ Dieses Repository enthält zusätzlich eine vollständig clientseitige Shiny-App
 
 1. In GitHub zu **Settings → Pages** gehen.
 2. Bei **Build and deployment / Source** die Option **GitHub Actions** verwenden.
-3. Nach dem nächsten Push auf `main` (oder einen `test/*` Branch) läuft der Workflow und deployed die statischen Shinylive-Artefakte auf GitHub Pages.
+3. Nach dem nächsten Push auf `main` (oder `codex/implement-client-side-shiny-app-with-shinylive`) läuft der Workflow und deployed die statischen Shinylive-Artefakte auf GitHub Pages.
 
 Hinweis: Es wird keine Cloud-Runtime für Shiny verwendet; Auslieferung und Laufzeit erfolgen rein statisch im Browser.
-Achtung: GitHub Pages hat nur eine aktive Site pro Repository. Deployments aus `test/*` können den zuletzt veröffentlichten Stand aus `main` überschreiben.
+Achtung: GitHub Pages hat nur eine aktive Site pro Repository. Deployments aus `codex/implement-client-side-shiny-app-with-shinylive` können den zuletzt veröffentlichten Stand aus `main` überschreiben.

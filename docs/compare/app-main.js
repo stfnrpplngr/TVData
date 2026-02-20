@@ -24,11 +24,19 @@ function unique(items) {
 function tableBaseCandidatesFromLocation() {
   const path = window.location.pathname.split('/').filter(Boolean);
   const repoName = path.length ? path[0] : '';
+  const ghPagesMatch = window.location.hostname.match(/^([^.]+)\.github\.io$/);
+  const owner = ghPagesMatch ? ghPagesMatch[1] : '';
+  const dynamicCdn = owner && repoName ? `https://cdn.jsdelivr.net/gh/${owner}/${repoName}@main/tables` : '';
+  const dynamicRaw = owner && repoName ? `https://raw.githubusercontent.com/${owner}/${repoName}/main/tables` : '';
+
   return unique([
+    './tables',
     '../tables',
     '../../tables',
     '/tables',
     repoName ? `/${repoName}/tables` : '',
+    dynamicCdn,
+    dynamicRaw,
     'https://cdn.jsdelivr.net/gh/stfnrpplngr/TVData@main/tables',
     'https://raw.githubusercontent.com/stfnrpplngr/TVData/main/tables',
   ]);
@@ -65,13 +73,15 @@ async function fetchCSV(url) { const r = await fetch(url, { cache: 'no-store' })
 
 async function resolveTablesBase() {
   if (tablesBase) return tablesBase;
+  const attempted = [];
   for (const base of TABLE_BASE_CANDIDATES) {
     try {
+      attempted.push(`${base}/index.json`);
       const idx = await fetchJSON(`${base}/index.json`);
       if (Array.isArray(idx) && idx.length) { tableList = idx; tablesBase = base; return base; }
     } catch (_) { }
   }
-  throw new Error('Konnte tables/index.json nicht laden.');
+  throw new Error(`Konnte tables/index.json nicht laden. Versucht: ${attempted.join(' | ')}`);
 }
 
 async function loadTable(name) {

@@ -24,11 +24,19 @@ function unique(items) {
 function tableBaseCandidatesFromLocation() {
   const path = window.location.pathname.split('/').filter(Boolean);
   const repoName = path.length ? path[0] : '';
+  const ghPagesMatch = window.location.hostname.match(/^([^.]+)\.github\.io$/);
+  const owner = ghPagesMatch ? ghPagesMatch[1] : '';
+  const dynamicCdn = owner && repoName ? `https://cdn.jsdelivr.net/gh/${owner}/${repoName}@main/tables` : '';
+  const dynamicRaw = owner && repoName ? `https://raw.githubusercontent.com/${owner}/${repoName}/main/tables` : '';
+
   return unique([
+    './tables',
     '../tables',
     '../../tables',
     '/tables',
     repoName ? `/${repoName}/tables` : '',
+    dynamicCdn,
+    dynamicRaw,
     'https://cdn.jsdelivr.net/gh/stfnrpplngr/TVData@main/tables',
     'https://raw.githubusercontent.com/stfnrpplngr/TVData/main/tables',
   ]);
@@ -63,15 +71,42 @@ function kvObject(rows) { const o = {}; rows.slice(1).forEach((r) => { if (r.len
 async function fetchJSON(url) { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error(url); return r.json(); }
 async function fetchCSV(url) { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error(url); return parseCSV(await r.text()); }
 
+async function discoverGithubBases(repoName) {
+  if (!repoName) return [];
+  try {
+    const q = encodeURIComponent(`${repoName} in:name`);
+    const result = await fetchJSON(`https://api.github.com/search/repositories?q=${q}&sort=updated&order=desc&per_page=5`);
+    if (!Array.isArray(result?.items)) return [];
+
+    const bases = [];
+    for (const item of result.items) {
+      if (!item?.owner?.login || !item?.name || !item?.default_branch) continue;
+      bases.push(`https://raw.githubusercontent.com/${item.owner.login}/${item.name}/${item.default_branch}/tables`);
+      bases.push(`https://cdn.jsdelivr.net/gh/${item.owner.login}/${item.name}@${item.default_branch}/tables`);
+    }
+    return unique(bases);
+  } catch (_) {
+    return [];
+  }
+}
+
 async function resolveTablesBase() {
   if (tablesBase) return tablesBase;
-  for (const base of TABLE_BASE_CANDIDATES) {
+  const attempted = [];
+  const path = window.location.pathname.split('/').filter(Boolean);
+  const repoName = path.length ? path[0] : '';
+
+  const discoveredBases = await discoverGithubBases(repoName);
+  const allCandidates = unique([...TABLE_BASE_CANDIDATES, ...discoveredBases]);
+
+  for (const base of allCandidates) {
     try {
+      attempted.push(`${base}/index.json`);
       const idx = await fetchJSON(`${base}/index.json`);
       if (Array.isArray(idx) && idx.length) { tableList = idx; tablesBase = base; return base; }
     } catch (_) { }
   }
-  throw new Error('Konnte tables/index.json nicht laden.');
+  throw new Error(`Konnte tables/index.json nicht laden. Versucht: ${attempted.join(' | ')}`);
 }
 
 async function loadTable(name) {

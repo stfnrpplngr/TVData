@@ -1,0 +1,3 @@
+tariff_id,valid_from,source_url,notes,license_note,version
+TV-L,2025-01-01,https://example.org/tv-l,Beispieldaten fuer App-Start,Demo data only,demo-1
+TVöD-VKA,2025-01-01,https://example.org/tvoed-vka,Beispieldaten fuer App-Start,Demo data only,demo-1

@@ -1,0 +1,9 @@
+tariff_id,component,amount_monthly,percent,scope_pay_group
+TV-L,Jahressonderzahlung,210,,
+TV-L,VWL,6.65,,
+TV-L,Zulagen,75,,E9
+TV-L,Grundentgelt,0,,
+TVöD-VKA,Jahressonderzahlung,175,,
+TVöD-VKA,VWL,6.65,,
+TVöD-VKA,Zulagen,55,,E9
+TVöD-VKA,Grundentgelt,0,,

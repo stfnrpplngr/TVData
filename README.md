@@ -509,3 +509,22 @@ python -m http.server 8000
 
 Danach im Browser öffnen:
 `http://localhost:8000/docs/compare/`
+
+## Shinylive Dashboard (clientseitig, GitHub Pages)
+
+Dieses Repository enthält zusätzlich eine vollständig clientseitige Shiny-App unter `app/app.R`, die mit **Shinylive** in statische Dateien exportiert wird. Die gesamte Interaktivität läuft im Browser (webR); es ist **kein eigener Serverbetrieb** erforderlich.
+
+- App-Einstieg: `app/app.R`
+- Datenschema (Beispiel/Platzhalter):
+  - `data/tables.csv` mit `tariff_id, pay_group, step, amount_monthly`
+  - `data/components.csv` mit `tariff_id, component, amount_monthly, percent, scope_pay_group`
+  - `data/meta.csv` mit `tariff_id, valid_from, source_url, notes, license_note, version`
+- Deployment-Workflow: `.github/workflows/deploy-shinylive.yml`
+
+### GitHub Pages aktivieren
+
+1. In GitHub zu **Settings → Pages** gehen.
+2. Bei **Build and deployment / Source** die Option **GitHub Actions** verwenden.
+3. Nach dem nächsten Push auf `main` läuft der Workflow und deployed die statischen Shinylive-Artefakte auf GitHub Pages.
+
+Hinweis: Es wird keine Cloud-Runtime für Shiny verwendet; Auslieferung und Laufzeit erfolgen rein statisch im Browser.

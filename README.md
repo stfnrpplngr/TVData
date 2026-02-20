@@ -520,6 +520,7 @@ Dieses Repository enthält zusätzlich eine vollständig clientseitige Shiny-App
   - `data/components.csv` mit `tariff_id, component, amount_monthly, percent, scope_pay_group`
   - `data/meta.csv` mit `tariff_id, valid_from, source_url, notes, license_note, version`
 - Deployment-Workflow: `.github/workflows/deploy-shinylive.yml`
+- Hinweis zu Abhängigkeiten: Das CI installiert `shinylive` über das Posit R-Universe (`https://posit-dev.r-universe.dev`) plus CRAN-Fallback, da `shinylive` nicht in jeder Umgebung direkt über reines CRAN verfügbar ist.
 
 ### GitHub Pages aktivieren
 

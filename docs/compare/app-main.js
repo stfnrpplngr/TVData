@@ -71,10 +71,35 @@ function kvObject(rows) { const o = {}; rows.slice(1).forEach((r) => { if (r.len
 async function fetchJSON(url) { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error(url); return r.json(); }
 async function fetchCSV(url) { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error(url); return parseCSV(await r.text()); }
 
+async function discoverGithubBases(repoName) {
+  if (!repoName) return [];
+  try {
+    const q = encodeURIComponent(`${repoName} in:name`);
+    const result = await fetchJSON(`https://api.github.com/search/repositories?q=${q}&sort=updated&order=desc&per_page=5`);
+    if (!Array.isArray(result?.items)) return [];
+
+    const bases = [];
+    for (const item of result.items) {
+      if (!item?.owner?.login || !item?.name || !item?.default_branch) continue;
+      bases.push(`https://raw.githubusercontent.com/${item.owner.login}/${item.name}/${item.default_branch}/tables`);
+      bases.push(`https://cdn.jsdelivr.net/gh/${item.owner.login}/${item.name}@${item.default_branch}/tables`);
+    }
+    return unique(bases);
+  } catch (_) {
+    return [];
+  }
+}
+
 async function resolveTablesBase() {
   if (tablesBase) return tablesBase;
   const attempted = [];
-  for (const base of TABLE_BASE_CANDIDATES) {
+  const path = window.location.pathname.split('/').filter(Boolean);
+  const repoName = path.length ? path[0] : '';
+
+  const discoveredBases = await discoverGithubBases(repoName);
+  const allCandidates = unique([...TABLE_BASE_CANDIDATES, ...discoveredBases]);
+
+  for (const base of allCandidates) {
     try {
       attempted.push(`${base}/index.json`);
       const idx = await fetchJSON(`${base}/index.json`);

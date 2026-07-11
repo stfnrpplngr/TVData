@@ -1,0 +1,99 @@
+name: Publish TVData API
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "tables/**"
+      - "allowances/**"
+      - "prv/**"
+      - "api/**"
+      - "scripts/build_api.py"
+      - "scripts/tests/test_build_api.py"
+      - ".github/workflows/publish-api.yml"
+  pull_request:
+    paths:
+      - "tables/**"
+      - "allowances/**"
+      - "prv/**"
+      - "api/**"
+      - "scripts/build_api.py"
+      - "scripts/tests/test_build_api.py"
+      - ".github/workflows/publish-api.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "tvdata-api-pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and validate API
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run API generator tests
+        run: python -m unittest discover -s scripts/tests -p "test_build_api.py" -v
+
+      - name: Generate static API
+        run: |
+          python scripts/build_api.py \
+            --root . \
+            --output _site \
+            --source-repository "${{ github.repository }}" \
+            --source-ref "${{ github.sha }}"
+
+      - name: Validate generated JSON
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          files = list(Path("_site/v1").rglob("*.json"))
+          if not files:
+              raise SystemExit("No JSON API files were generated.")
+
+          for path in files:
+              with path.open(encoding="utf-8") as handle:
+                  json.load(handle)
+
+          manifest = json.loads(Path("_site/v1/index.json").read_text(encoding="utf-8"))
+          print(f"Validated {len(files)} JSON files")
+          print(json.dumps(manifest["counts"], ensure_ascii=False, indent=2))
+          PY
+
+      - name: Configure GitHub Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+
+      - name: Upload GitHub Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy GitHub Pages
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy API
+        id: deployment
+        uses: actions/deploy-pages@v4

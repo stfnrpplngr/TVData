@@ -1,0 +1,15 @@
+domain,source_class,authority_level,role,quality_tier,notes
+tdl-online.de,employer_association,primary,tariff_contracting_party,high,Tarifgemeinschaft deutscher Länder
+bmi.bund.de,public_authority,primary,employer_authority,high,Federal Ministry responsible for public service
+bund.de,public_authority,primary,official_publication,high,Federal public administration
+gesetze-im-internet.de,official_legislation,primary,legal_text,high,Federal Ministry of Justice legal publication service
+dbb.de,trade_union,social_partner,tariff_contracting_party,high,Collective-bargaining party / union publication
+verdi.de,trade_union,social_partner,tariff_contracting_party,high,Collective-bargaining party / union publication
+dgb.de,trade_union,social_partner,social_partner,high,Trade-union federation
+arbeitsagentur.de,public_institution,primary,employer_or_institution_source,high,Federal Employment Agency
+deutsche-rentenversicherung.de,public_institution,primary,employer_or_institution_source,high,German Pension Insurance
+dguv.de,public_institution,primary,employer_or_institution_source,high,German Social Accident Insurance
+swm.de,public_employer,primary,employer_source,high,Municipal employer publication
+itdz-berlin.de,public_employer,primary,employer_source,high,Public IT service provider publication
+oeffentlicher-dienst.info,aggregator,secondary,reference_aggregator,medium,Independent public-service information portal
+kommunalforum.de,aggregator,secondary,reference_aggregator,medium,Secondary municipal/public-service information portal

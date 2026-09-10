@@ -1,0 +1,32 @@
+{
+  "profile_id": "tvdata-tariff-intelligence",
+  "profile_version": "0.2.0",
+  "schema_version": "1.0.0",
+  "stability": "experimental",
+  "source_of_truth": "repository-csv",
+  "mcp_sdk_compatibility": ">=2,<3",
+  "principle": "Require -> Adopt -> Profile -> Extend -> Invent",
+  "capabilities": [
+    "discover",
+    "resolve-entities",
+    "resolve-time-snapshots",
+    "compare-base-pay",
+    "rank-base-pay",
+    "compare-progression",
+    "resolve-working-time-context",
+    "trace-provenance",
+    "audit-data-quality"
+  ],
+  "guardrails": [
+    "read-only",
+    "no-second-datastore",
+    "no-job-equivalence-from-pay-proximity",
+    "no-total-compensation-without-formalized-components",
+    "no-net-pay-without-separate-tax-social-insurance-model",
+    "historical-snapshots-are-latest-known-not-legally-complete"
+  ],
+  "profile_data": {
+    "working_time_context": "profiles/tvdata-mcp/working-time-context.csv",
+    "source_registry": "profiles/tvdata-mcp/source-registry.csv"
+  }
+}

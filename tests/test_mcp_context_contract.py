@@ -18,7 +18,7 @@ async def test_manifest_is_exposed_through_mcp():
         assert result.is_error is False
         payload = result.structured_content
         assert payload["profile_id"] == "tvdata-tariff-intelligence"
-        assert payload["profile_version"] == "0.3.0"
+        assert payload["profile_version"] == "0.4.0"
 
 
 @pytest.mark.anyio

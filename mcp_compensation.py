@@ -198,6 +198,10 @@ def _component_profile(
         warnings.append(
             "represented_annual_rate_pct reconstructs the encoded tariff percentage only; it does not calculate the payment amount."
         )
+    if meta.get("conditional_rate_grade") == pay_grade:
+        warnings.append(
+            "This pay grade has a conditional step-dependent annual rate. The raw Table.csv rate is not sufficient; use get_annual_special_payment_rule with an explicit step."
+        )
     excluded = _split(meta.get("excluded_contexts"))
     if excluded:
         warnings.append(
@@ -358,6 +362,45 @@ def audit_compensation_components(
                     message=f"{nonnumeric} non-empty component values are non-numeric.",
                 )
             )
+
+        conditional_grade = meta.get("conditional_rate_grade")
+        if conditional_grade:
+            required_conditional = (
+                "conditional_rate_match_steps",
+                "conditional_rate_match_pct",
+                "conditional_rate_other_pct",
+                "conditional_rate_rule",
+            )
+            missing_conditional = [
+                key for key in required_conditional if not meta.get(key)
+            ]
+            if missing_conditional:
+                issues.append(
+                    CompensationAuditIssue(
+                        allowance_id=allowance_id,
+                        severity="error",
+                        code="incomplete_conditional_rate",
+                        message="Conditional rate metadata is incomplete: " + ", ".join(missing_conditional) + ".",
+                    )
+                )
+            else:
+                if _to_float(meta.get("conditional_rate_match_pct")) is None or _to_float(meta.get("conditional_rate_other_pct")) is None:
+                    issues.append(
+                        CompensationAuditIssue(
+                            allowance_id=allowance_id,
+                            severity="error",
+                            code="invalid_conditional_rate",
+                            message="Conditional annual-rate percentages must be numeric.",
+                        )
+                    )
+                issues.append(
+                    CompensationAuditIssue(
+                        allowance_id=allowance_id,
+                        severity="info",
+                        code="conditional_rate_requires_context",
+                        message=f"Pay grade {conditional_grade!r} requires step-aware annual-rate resolution; raw Table.csv alone is insufficient.",
+                    )
+                )
 
         if encoding == "relative_yearly":
             if not meta.get("value_semantics"):

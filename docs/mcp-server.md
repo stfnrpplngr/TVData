@@ -1,29 +1,14 @@
 # TVData MCP server
 
-TVData exposes public-sector remuneration data through a read-only Model Context Protocol (MCP) server. Repository CSV files remain the canonical source of truth. The MCP layer adds discovery, semantic resolution, deterministic comparison, context resolution, provenance and compensation-component inspection without creating a second datastore.
+TVData exposes public-sector remuneration data through a read-only Model Context Protocol (MCP) server. Repository CSV files remain the canonical source of truth. The MCP layer adds discovery, semantic resolution, deterministic comparison, context resolution, provenance and compensation semantics without creating a second datastore.
 
 ## Architectural boundary
 
-The MCP is an analytical interface, not a payroll engine and not a second data model. It follows the project rule `Require -> Adopt -> Profile -> Extend -> Invent`.
+The MCP is an analytical interface, not a payroll engine and not a second data model. It follows `Require -> Adopt -> Profile -> Extend -> Invent`.
 
-The server may:
+It may discover pay systems, resolve current/historical snapshots, compare nominal base pay, normalize by documented working time, inspect provenance and compensation components, and perform narrowly scoped arithmetic where all legally relevant inputs are explicitly supplied.
 
-- discover pay systems, grades, steps, allowances and supplementary pension metadata;
-- resolve human pay-system terms to canonical table identifiers;
-- resolve current and latest-known historical snapshots;
-- compare and rank nominal base pay;
-- normalize base pay by documented contractual working time;
-- inspect progression, provenance and data quality;
-- inspect compensation-component encodings and calculation readiness.
-
-The server must not:
-
-- mutate repository data;
-- infer occupational, legal or status equivalence from similar pay;
-- calculate net income or employer cost without separate tax/social-insurance models;
-- treat archived yearly snapshots as a legally complete temporal database;
-- calculate a payment amount from an annual percentage without the tariff-specific assessment base;
-- automatically construct total annual compensation until all included components have validated entitlement, temporal and assessment-base semantics.
+It must not mutate repository data; infer occupational/legal equivalence from similar pay; infer individual entitlement, a tariff assessment base or proration exceptions; treat archive snapshots as a legally complete temporal database; calculate net pay/employer cost without separate models; or silently construct total annual compensation from incomplete components.
 
 ## Application profile
 
@@ -32,7 +17,7 @@ The server must not:
 Current profile:
 
 - profile id: `tvdata-tariff-intelligence`
-- profile version: `0.3.0`
+- profile version: `0.4.0`
 - schema version: `1.0.0`
 - stability: `experimental`
 - source of truth: `repository-csv`
@@ -60,7 +45,7 @@ TVDATA_MCP_PORT=8000 \
 python mcp_server.py
 ```
 
-The endpoint is then available at `http://127.0.0.1:8000/mcp`. For remote deployment, terminate TLS at the platform/reverse proxy. Authentication becomes mandatory if write tools or non-public data are ever introduced.
+The endpoint is then available at `http://127.0.0.1:8000/mcp`. Authentication becomes mandatory if write tools or non-public data are introduced.
 
 ## Tool layers
 
@@ -101,22 +86,20 @@ The endpoint is then available at `http://127.0.0.1:8000/mcp`. For remote deploy
 - `audit_pay_data_quality`
 - `audit_source_provenance`
 
-### P2 compensation semantics
+### Compensation semantics
 
 - `inspect_compensation_components`
 - `audit_compensation_component_semantics`
+- `get_annual_special_payment_rule`
+- `calculate_annual_special_payment`
 
-These P2 tools inspect component encodings, options, validity, scope, provenance and annualization readiness. They deliberately stop before total-compensation calculation.
-
-## Working-time context
+## P1 working-time and provenance context
 
 Working time is not always a property of the pay table alone. `profiles/tvdata-mcp/working-time-context.csv` stores contextual records where jurisdiction or employment context is required.
 
-Example: `TV-L` without a Land is intentionally unresolved. `resolve_weekly_working_time(table_id="TV-L", jurisdiction_code="DE-ST")` resolves Sachsen-Anhalt to the documented value and returns its provenance and evidence quality. `TVöD-Bund` can use an unambiguous table-level default.
+For example, `TV-L` without a Land is intentionally unresolved. `resolve_weekly_working_time(table_id="TV-L", jurisdiction_code="DE-ST")` resolves Sachsen-Anhalt using profiled provenance. `TVöD-Bund` can use its unambiguous table-level default.
 
-`compare_pay_positions_with_context` uses this resolver so callers do not need to inject arbitrary working-time overrides when a profiled context exists.
-
-The normalization
+The working-time normalization
 
 ```text
 (monthly base × 12) / (weekly contractual hours × 52)
@@ -124,73 +107,98 @@ The normalization
 
 is an analytical comparison metric, not a payroll hourly wage.
 
-## Provenance
+`profiles/tvdata-mcp/source-registry.csv` classifies known source domains by authority role and evidence quality. Authority and factual/temporal correctness remain separate concepts.
 
-`profiles/tvdata-mcp/source-registry.csv` classifies known source domains by authority role and evidence quality. Source authority and factual/temporal correctness are kept separate: an authoritative domain does not prove that a particular document is the correct version for a dataset.
+## P2 compensation-component semantics
 
-The provenance tools expose source URLs, validity metadata, registry classification and gaps. P1 also corrected stale pay-table source links for current TV-L and TVöD-Bund data without changing the corresponding pay values.
+Allowance tables use repository-specific combinations such as `func_type=fabsolute|frelative` and `adding_type=monthly|yearly`. P2 makes these semantics explicit instead of assuming every linked component can be safely added to annual base pay.
 
-## P2 compensation semantics
+The inspection layer classifies components as `absolute_monthly`, `absolute_yearly`, `relative_monthly`, `relative_yearly` or `unknown`.
 
-Allowance tables use repository-specific combinations such as `func_type=fabsolute|frelative` and `adding_type=monthly|yearly`. P2 makes these semantics explicit instead of assuming that every linked component can be safely added to annual base pay.
-
-The inspection layer classifies components as:
-
-- `absolute_monthly`
-- `absolute_yearly`
-- `relative_monthly`
-- `relative_yearly`
-- `unknown`
-
-For annual special payments stored as a relative yearly factor, P2 introduces:
+Annual special payments stored as relative yearly factors use:
 
 ```text
 value_semantics=annual_percentage_divided_by_12
 ```
 
-This means a stored value such as `6.25` can be reconstructed as an encoded annual rate of `75 %` (`6.25 × 12`). It does **not** mean the payment equals 75 % of one table month. The tariff-specific assessment base, entitlement conditions, reductions and special contexts remain separate requirements.
+A stored value of `6.25` can therefore be reconstructed as an encoded annual rate of `75 %`. That reconstruction is not yet a euro payment calculation because the tariff-specific assessment base and entitlement/proration rules remain separate.
 
-Accordingly, `represented_annual_rate_pct` is informational/provenance output, while `safe_for_total_annual_compensation` remains `false` for these components.
+P2 also updates the encoded 2026 annual-special-payment rates for TVöD Bund (95/90/75 %), general VKA (85 %) and the generic VKA S-table profile (85 % with explicit exclusion of BT-B/BT-K contexts). `default_option` remains repository/UI configuration and is not treated as proof of individual entitlement.
 
-### 2026 annual-special-payment data
+## P3 annual-special-payment rules
 
-P2 updates the encoded 2026 annual-special-payment rates for the current TVöD profiles:
+P3 moves rule facts into the canonical allowance metadata rather than an MCP-only side table. Annual special-payment components now describe, where applicable:
 
-- Bund: 95 % for E1-E8, 90 % for E9a-E12, 75 % for E13-E15;
-- general VKA: 85 %;
-- generic VKA S-table profile: 85 %, explicitly excluding `TVöD-BT-B` and `TVöD-BT-K` special contexts.
+- entitlement reference date;
+- regular assessment months;
+- assessment-base rule and excluded payment components;
+- pay-grade reference date;
+- late-start threshold and replacement assessment rule;
+- partial-period normalization;
+- one-twelfth proration semantics including the fact that tariff exceptions exist;
+- payment month;
+- a dedicated rule source.
 
-The special BT-B/BT-K rules are intentionally not projected into the generic S-table component.
+The profile captures a material TV-L/TVöD distinction: TV-L switches to the first full employment month for employment beginning after 31 August, whereas TVöD Bund/VKA use the corresponding late-start rule after 30 September. The MCP exposes the distinction instead of normalizing it away.
 
-`default_option` remains repository configuration metadata and is not interpreted by the MCP as proof of individual entitlement.
+### Step-dependent TV-L E13Ü rule
+
+TV-L E13Ü cannot be represented by one annual-special-payment rate. Under the formalized rule, steps 2 and 3 use the E13 rate of 46.47 %, while the other available E13Ü steps use the E14 rate of 32.53 %. The legacy component table contains only one `13Ü` row and is therefore insufficient by itself.
+
+For `pay_grade="13Ü"`, `get_annual_special_payment_rule` consequently requires `step`. It validates the step against the current pay table before applying the conditional rule. Calls without a step, or with unavailable steps such as step 1, fail rather than silently returning the raw row value. `inspect_compensation_components` also warns that the raw component view is context-incomplete for this grade.
+
+### VKA employment context
+
+The repository has no separate BT-B/BT-K pay-table entities. Therefore the generic VKA and generic SuE annual-special-payment rules explicitly exclude these special employment contexts. Conditional calculation requires `employment_context` for those generic components and rejects `TVöD-BT-B` or `TVöD-BT-K` rather than applying the general 85 % rate. This keeps absence of modeling distinct from a false generic answer.
+
+### Conditional arithmetic
+
+`get_annual_special_payment_rule(table_id, pay_grade, step=None)` returns the formalized rule and resolved annual rate.
+
+`calculate_annual_special_payment(...)` performs only the final arithmetic:
+
+```text
+confirmed_assessment_base_monthly_eur
+× annual_rate_pct / 100
+× payable_twelfths / 12
+```
+
+The caller must explicitly provide:
+
+1. a tariff-compliant, confirmed monthly assessment base;
+2. `payable_twelfths` after resolving reductions and exceptions;
+3. `entitlement_confirmed=true` only after the individual entitlement test has been resolved;
+4. `step` where the rate is step-dependent;
+5. `employment_context` where the generic component excludes special contexts.
+
+The tool refuses to infer any of these inputs. It also rejects non-finite assessment bases and unavailable steps.
+
+The result is one gross special-payment component. It is not total annual compensation, net pay or employer cost.
 
 ## Historical semantics
 
-Historical resolution chooses the latest known repository snapshot on or before the requested date. It does not extrapolate backwards before the earliest known snapshot and does not silently project current working-time values into older periods. The archive therefore provides repository history, not a legally complete validity-time database.
+Historical resolution chooses the latest known repository snapshot on or before the requested date. It does not extrapolate backwards before the earliest known snapshot and does not silently project current working-time values into older periods. Archive history is therefore repository history, not a legally complete validity-time database.
 
 ## Testing
 
-Pure domain/profile tests live under `tests/` and MCP contract tests use the SDK in-memory client. Relevant commands after installing the MCP dependencies include:
+Relevant pure tests after installing dependencies:
 
 ```bash
-pytest -q tests/test_mcp_analytics.py tests/test_mcp_context.py tests/test_mcp_compensation.py
-pytest -q tests/test_mcp_server.py tests/test_mcp_context_contract.py tests/test_mcp_compensation_contract.py
+pytest -q tests/test_mcp_analytics.py tests/test_mcp_context.py tests/test_mcp_compensation.py tests/test_mcp_special_payments.py
+```
+
+MCP contract tests:
+
+```bash
+pytest -q tests/test_mcp_server.py tests/test_mcp_context_contract.py tests/test_mcp_compensation_contract.py tests/test_mcp_special_payment_contract.py
 ```
 
 No GitHub Actions workflow is introduced solely for this MCP feature.
 
 ## Validation status
 
-The repository changes include regression tests for profile versioning, contextual working time, provenance, annual-rate reconstruction and MCP tool contracts. In the current authoring environment, direct GitHub cloning is unavailable because outbound DNS is blocked and the MCP SDK is not installed, so the full runtime `pytest` suite cannot be executed here. This limitation must remain explicit in the pull request until the suite is run in an environment with `requirements-mcp.txt` installed.
+Regression tests cover profile versioning, contextual working time, provenance, annual-rate reconstruction, conditional E13Ü rates, rule semantics, conditional special-payment arithmetic and MCP tool contracts. In the current authoring environment, outbound DNS blocks cloning the repository and the MCP SDK is not installed, so the complete runtime `pytest` suite cannot be executed here. That limitation must remain explicit until validation runs in an environment with `requirements-mcp.txt` installed.
 
 ## Next boundary
 
-A future P3 may add validated annual-compensation calculations, but only after formalizing at least:
-
-1. entitlement conditions and default semantics;
-2. tariff-specific assessment bases;
-3. time-dependent component validity;
-4. reductions/proration and special employment contexts;
-5. component interaction/double-counting rules.
-
-Net pay, employer cost and CPI-backed real-pay analysis should remain separate adapters/engines rather than being folded into the TVData canonical pay-data boundary.
+A later profile may assemble a validated annual-compensation view, but only from components whose entitlement, assessment base, temporal validity, proration and interaction/double-counting semantics are formalized. Net pay, employer cost and CPI-backed real-pay analysis remain separate adapters/engines and should not contaminate TVData's canonical pay-data boundary.

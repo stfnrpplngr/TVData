@@ -1,4 +1,4 @@
-"""MCP registration for compensation-component inspection and audit."""
+"""MCP registration for compensation-component inspection, audit and special payments."""
 
 from __future__ import annotations
 
@@ -13,10 +13,11 @@ from mcp_compensation import (
     audit_compensation_components,
     inspect_compensation_components as inspect_components,
 )
+from mcp_special_payment_tools import register_special_payment_tools
 
 
 def register_compensation_tools(mcp, root: Path) -> None:
-    """Register P2 read-only compensation semantics tools."""
+    """Register read-only compensation semantics and P3 special-payment tools."""
 
     @mcp.tool()
     def inspect_compensation_components(
@@ -39,3 +40,5 @@ def register_compensation_tools(mcp, root: Path) -> None:
             return audit_compensation_components(root, query, limit)
         except AnalyticsError as exc:
             raise ToolError(str(exc)) from exc
+
+    register_special_payment_tools(mcp, root)

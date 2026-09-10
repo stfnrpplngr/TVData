@@ -1,4 +1,4 @@
-"""P2 compensation-component semantics and audit tests."""
+"""P2/P3 compensation-component semantics and audit tests."""
 
 from pathlib import Path
 
@@ -28,6 +28,21 @@ def test_tv_l_annual_bonus_reconstructs_encoded_rate_without_calculating_payment
     assert component.safe_for_total_annual_compensation is False
 
 
+def test_tv_l_e13ue_raw_component_warns_that_step_context_is_required():
+    inspection = inspect_compensation_components(ROOT, "TV-L", "13Ü")
+    component = _component(inspection, "tv-l-annual-bonus")
+    assert any("step-dependent" in warning for warning in component.warnings)
+    assert any("get_annual_special_payment_rule" in warning for warning in component.warnings)
+
+
+def test_tv_l_conditional_rate_is_visible_in_component_audit():
+    report = audit_compensation_components(ROOT, query="tv-l-annual-bonus")
+    codes = {issue.code for issue in report.issues}
+    assert "conditional_rate_requires_context" in codes
+    assert "incomplete_conditional_rate" not in codes
+    assert "invalid_conditional_rate" not in codes
+
+
 def test_tvoed_bund_2026_e13_annual_bonus_rate_is_75_percent():
     inspection = inspect_compensation_components(ROOT, "TVöD-Bund", "13")
     component = _component(inspection, "tvoed-bund-annual-bonus")
@@ -42,6 +57,8 @@ def test_tvoed_vka_2026_annual_bonus_rate_is_85_percent():
     component = _component(inspection, "tvoed-vka-annual-bonus")
     yes = _option(component, "yes")
     assert yes.represented_annual_rate_pct == pytest.approx(85.0, abs=0.001)
+    assert component.scope == "general-vka"
+    assert component.excluded_contexts == ["TVöD-BT-B", "TVöD-BT-K"]
 
 
 def test_generic_sue_profile_is_85_percent_and_excludes_bt_b_bt_k():

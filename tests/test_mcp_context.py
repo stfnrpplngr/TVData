@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_profile_manifest_is_explicitly_versioned():
     manifest = get_profile_manifest(ROOT)
     assert manifest.profile_id == "tvdata-tariff-intelligence"
-    assert manifest.profile_version == "0.3.0"
+    assert manifest.profile_version == "0.4.0"
     assert manifest.schema_version == "1.0.0"
     assert manifest.source_of_truth == "repository-csv"
     assert "read-only" in manifest.guardrails

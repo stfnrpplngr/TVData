@@ -1,0 +1,16 @@
+table_id,jurisdiction_code,jurisdiction_name_de,employment_context,valid_from,valid_to,weekly_hours,evidence_quality,source_url,legal_basis_url,notes
+TV-L,DE-BW,Baden-Württemberg,general,2025-01-01,,39.5,medium,https://oeffentlicher-dienst.info/tv-l/ost/arbeitszeit.html,,39:30; state-specific regular weekly working time
+TV-L,DE-BY,Bayern,general,2025-01-01,,40.0,medium,https://oeffentlicher-dienst.info/tv-l/ost/arbeitszeit.html,,40:00; state-specific regular weekly working time
+TV-L,DE-BE,Berlin,general,2025-01-01,,39.4,medium,https://oeffentlicher-dienst.info/tv-l/ost/arbeitszeit.html,,39:24; state-specific regular weekly working time
+TV-L,DE-BB,Brandenburg,general,2025-01-01,,40.0,high,https://oeffentlicher-dienst.info/tv-l/ost/arbeitszeit.html,https://www.tdl-online.de/fileadmin/downloads/TV-L/TV-L__i.d.F._des_%C3%84TV_Nr._13_VT.pdf,40:00; tariff area East and directly supported by TV-L section 6
+TV-L,DE-HB,Bremen,general,2025-01-01,,39.2,medium,https://oeffentlicher-dienst.info/tv-l/ost/arbeitszeit.html,,39:12; state-specific regular weekly working time
+TV-L,DE-HH,Hamburg,general,2025-01-01,,39.0,medium,https://oeffentlicher-dienst.info/tv-l/ost/arbeitszeit.html,,39:00; state-specific regular weekly working time
+TV-L,DE-MV,Mecklenburg-Vorpommern,general,2025-01-01,,40.0,high,https://oeffentlicher-dienst.info/tv-l/ost/arbeitszeit.html,https://www.tdl-online.de/fileadmin/downloads/TV-L/TV-L__i.d.F._des_%C3%84TV_Nr._13_VT.pdf,40:00; tariff area East and directly supported by TV-L section 6
+TV-L,DE-NI,Niedersachsen,general,2025-01-01,,39.8,medium,https://oeffentlicher-dienst.info/tv-l/ost/arbeitszeit.html,,39:48; state-specific regular weekly working time
+TV-L,DE-NW,Nordrhein-Westfalen,general,2025-01-01,,39.8333333333,medium,https://oeffentlicher-dienst.info/tv-l/ost/arbeitszeit.html,,39:50; state-specific regular weekly working time
+TV-L,DE-RP,Rheinland-Pfalz,general,2025-01-01,,39.0,medium,https://oeffentlicher-dienst.info/tv-l/ost/arbeitszeit.html,,39:00; state-specific regular weekly working time
+TV-L,DE-SL,Saarland,general,2025-01-01,,39.5,medium,https://oeffentlicher-dienst.info/tv-l/ost/arbeitszeit.html,,39:30; state-specific regular weekly working time
+TV-L,DE-SN,Sachsen,general,2025-01-01,,40.0,high,https://oeffentlicher-dienst.info/tv-l/ost/arbeitszeit.html,https://www.tdl-online.de/fileadmin/downloads/TV-L/TV-L__i.d.F._des_%C3%84TV_Nr._13_VT.pdf,40:00; tariff area East and directly supported by TV-L section 6
+TV-L,DE-ST,Sachsen-Anhalt,general,2025-01-01,,40.0,high,https://oeffentlicher-dienst.info/tv-l/ost/arbeitszeit.html,https://www.tdl-online.de/fileadmin/downloads/TV-L/TV-L__i.d.F._des_%C3%84TV_Nr._13_VT.pdf,40:00; tariff area East and directly supported by TV-L section 6
+TV-L,DE-SH,Schleswig-Holstein,general,2025-01-01,,38.7,medium,https://oeffentlicher-dienst.info/tv-l/ost/arbeitszeit.html,,38:42; state-specific regular weekly working time
+TV-L,DE-TH,Thüringen,general,2025-01-01,,40.0,high,https://oeffentlicher-dienst.info/tv-l/ost/arbeitszeit.html,https://www.tdl-online.de/fileadmin/downloads/TV-L/TV-L__i.d.F._des_%C3%84TV_Nr._13_VT.pdf,40:00; tariff area East and directly supported by TV-L section 6

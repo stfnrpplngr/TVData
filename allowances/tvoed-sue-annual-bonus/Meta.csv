@@ -1,12 +1,17 @@
 name,value
-info,"§ 52a Jahressonderzahlung im Bereich der Pflege - der Jahresbonus muss in einen Monatsbonus aufgeteilt werden"
+info,Jahressonderzahlung für die generische S-Tabelle im VKA-Bereich ab Kalenderjahr 2026
 func_type,frelative
 adding_type,yearly
+value_semantics,annual_percentage_divided_by_12
 label_de,Jahressonderzahlung
 label_en,Annual Bonus
-info_de,"Arbeitnehmer, die am 1. Dezember in einem Arbeitsverhältnis stehen, haben Anspruch auf eine Jahressonderzahlung. Die Jahressonderzahlung beträgt {{yes_value}} des monatlichen Grundgehalts."
-info_en,"Employees who are in an employment relationship on December 1 are entitled to an annual bonus payment. The annual bonus payment amounts to {{yes_value}} of the base monthly salary."
+info_de,"Jahressonderzahlung ab Kalenderjahr 2026 für Beschäftigte der S-Tabelle im allgemeinen VKA-Bereich: 85 %. Ausgenommen sind besondere Beschäftigungskontexte im TVöD-BT-B und TVöD-BT-K; dort gelten für Entsprechungen zu Entgeltgruppen 1 bis 8 90 % und für Entsprechungen zu 9a bis 15 85 %. Diese generische Zulagentabelle bildet nur den allgemeinen S-Tabellen-Fall ab. Die gespeicherten Werte entsprechen 85 % geteilt durch 12 als relativem Jahresfaktor; die tarifliche Bemessungsgrundlage ist separat zu beachten."
+info_en,"Annual bonus from calendar year 2026 for S-table employees in the general VKA area: 85%. Special employment contexts under TVöD-BT-B and TVöD-BT-K are excluded; equivalents of pay grades 1 to 8 receive 90%, while equivalents of 9a to 15 receive 85%. This generic allowance table represents only the general S-table case. Stored values equal 85% divided by 12 as a relative yearly factor; the tariff-specific assessment base must be considered separately."
 options,no;yes
 default_option,yes
 options_label_de,Nein;Ja
 options_label_en,No;Yes
+link,https://www.dbb.de/fileadmin/user_upload/globale_elemente/pdfs/2025/Einkommensrunde/Entgelttabellen_Bund_Kommunen/250406_Einigungspapier_TVOeD_2025.pdf
+valid_from,2026.01.01
+scope,generic-vka-s-table
+excluded_contexts,TVöD-BT-B;TVöD-BT-K

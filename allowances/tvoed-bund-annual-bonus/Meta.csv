@@ -1,12 +1,15 @@
 name,value
-info,"§ 20 (Bund) Jahressonderzahlung"
+info,Jahressonderzahlung nach TVöD Bund ab Kalenderjahr 2026
 func_type,frelative
 adding_type,yearly
+value_semantics,annual_percentage_divided_by_12
 label_de,Jahressonderzahlung
 label_en,Annual Bonus
-info_de,"Arbeitnehmer, die am 1. Dezember in einem Arbeitsverhältnis stehen, haben Anspruch auf eine Jahressonderzahlung. Die Jahressonderzahlung beträgt {{yes_value}} des monatlichen Grundgehalts."
-info_en,"Employees who are in an employment relationship on December 1 are entitled to an annual bonus payment. The annual bonus payment amounts to {{yes_value}} of the base monthly salary."
+info_de,"Jahressonderzahlung ab Kalenderjahr 2026: Entgeltgruppen 1 bis 8: 95 %; Entgeltgruppen 9a bis 12: 90 %; Entgeltgruppen 13 bis 15: 75 %. Die gespeicherten Tabellenwerte bilden den jeweiligen Prozentsatz geteilt durch 12 als relativen Jahresfaktor ab. Die tarifliche Bemessungsgrundlage ist separat zu beachten."
+info_en,"Annual bonus from calendar year 2026: pay grades 1 to 8: 95%; pay grades 9a to 12: 90%; pay grades 13 to 15: 75%. Stored table values represent the applicable percentage divided by 12 as a relative yearly factor. The tariff-specific assessment base must be considered separately."
 options,no;yes
 default_option,yes
 options_label_de,Nein;Ja
 options_label_en,No;Yes
+link,https://www.dbb.de/fileadmin/user_upload/globale_elemente/pdfs/2025/Einkommensrunde/Entgelttabellen_Bund_Kommunen/250406_Einigungspapier_TVOeD_2025.pdf
+valid_from,2026.01.01

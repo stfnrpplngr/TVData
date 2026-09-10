@@ -36,6 +36,7 @@ from mcp_analytics import (
     get_table_structure,
     rank_base_pay,
 )
+from mcp_compensation_tools import register_compensation_tools
 from mcp_context import (
     ContextualComparisonResult,
     ContextualPayPositionRequest,
@@ -300,3 +301,5 @@ def register_analytics_tools(mcp, root: Path) -> None:
             return audit_pay_data(root, query, limit)
         except AnalyticsError as exc:
             raise _tool_error(exc) from exc
+
+    register_compensation_tools(mcp, root)

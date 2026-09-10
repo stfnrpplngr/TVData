@@ -1,12 +1,15 @@
 name,value
-info,"§ 20 (VKA) Jahressonderzahlung"
+info,Jahressonderzahlung im allgemeinen VKA-Bereich ab Kalenderjahr 2026
 func_type,frelative
 adding_type,yearly
+value_semantics,annual_percentage_divided_by_12
 label_de,Jahressonderzahlung
 label_en,Annual Bonus
-info_de,"Arbeitnehmer, die am 1. Dezember in einem Arbeitsverhältnis stehen, haben Anspruch auf eine Jahressonderzahlung. Die Jahressonderzahlung beträgt {{yes_value}} des monatlichen Grundgehalts."
-info_en,"Employees who are in an employment relationship on December 1 are entitled to an annual bonus payment. The annual bonus payment amounts to {{yes_value}} of the base monthly salary."
+info_de,"Jahressonderzahlung ab Kalenderjahr 2026 im allgemeinen VKA-Bereich: 85 %. Dies gilt auch für Beschäftigte der P- und S-Tabelle, außer in den besonderen Bereichen BT-B und BT-K. Die gespeicherten Tabellenwerte bilden 85 % geteilt durch 12 als relativen Jahresfaktor ab. Die tarifliche Bemessungsgrundlage ist separat zu beachten."
+info_en,"Annual bonus from calendar year 2026 in the general VKA area: 85%. This also applies to P- and S-table employees except in the special BT-B and BT-K areas. Stored table values represent 85% divided by 12 as a relative yearly factor. The tariff-specific assessment base must be considered separately."
 options,no;yes
 default_option,no
 options_label_de,Nein;Ja
 options_label_en,No;Yes
+link,https://www.dbb.de/fileadmin/user_upload/globale_elemente/pdfs/2025/Einkommensrunde/Entgelttabellen_Bund_Kommunen/250406_Einigungspapier_TVOeD_2025.pdf
+valid_from,2026.01.01

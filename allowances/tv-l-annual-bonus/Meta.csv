@@ -1,12 +1,15 @@
 name,value
-info,"§ 20 Jahressonderzahlung - Die Jahressonderzahlung wird ursprünglich auf jährlicher Basis definiert, hier jedoch auf monatlicher Basis, indem ich den Prozentsatz durch 12 teile"
+info,"§ 20 Jahressonderzahlung - jährlicher Prozentsatz wird in Table.csv durch 12 geteilt gespeichert"
 func_type,frelative
 adding_type,yearly
+value_semantics,annual_percentage_divided_by_12
 label_de,Jahressonderzahlung
 label_en,Annual Bonus
-info_de,"Arbeitnehmer, die am 1. Dezember in einem Arbeitsverhältnis stehen, haben Anspruch auf eine Jahressonderzahlung. Die Jahressonderzahlung beträgt {{yes_value}} des monatlichen Grundgehalts."
-info_en,"Employees who are in an employment relationship on December 1 are entitled to an annual bonus payment. The annual bonus payment amounts to {{yes_value}} of the base monthly salary."
+info_de,"Jahressonderzahlung nach § 20 TV-L: Entgeltgruppen 1 bis 4: 87,43 %; 5 bis 8: 88,14 %; 9a bis 11: 74,35 %; 12 und 13: 46,47 %; 14 und 15: 32,53 % der tariflichen Bemessungsgrundlage. Die gespeicherten Tabellenwerte bilden den jeweiligen Prozentsatz geteilt durch 12 ab."
+info_en,"Annual bonus under section 20 TV-L. Stored table values represent the applicable annual percentage divided by 12; the tariff-specific assessment base must be considered separately."
 options,no;yes
 default_option,yes
 options_label_de,Nein;Ja
 options_label_en,No;Yes
+link,https://www.tdl-online.de/fileadmin/downloads/TV-L/TV-L__i.d.F._des_%C3%84TV_Nr._12_VT_komprimiert.pdf
+valid_from,2022.01.01

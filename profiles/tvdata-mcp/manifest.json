@@ -1,6 +1,6 @@
 {
   "profile_id": "tvdata-tariff-intelligence",
-  "profile_version": "0.2.0",
+  "profile_version": "0.3.0",
   "schema_version": "1.0.0",
   "stability": "experimental",
   "source_of_truth": "repository-csv",
@@ -15,13 +15,17 @@
     "compare-progression",
     "resolve-working-time-context",
     "trace-provenance",
-    "audit-data-quality"
+    "audit-data-quality",
+    "inspect-compensation-components",
+    "audit-compensation-components",
+    "reconstruct-encoded-annual-rates"
   ],
   "guardrails": [
     "read-only",
     "no-second-datastore",
     "no-job-equivalence-from-pay-proximity",
     "no-total-compensation-without-formalized-components",
+    "no-payment-amount-from-percentage-without-tariff-assessment-base",
     "no-net-pay-without-separate-tax-social-insurance-model",
     "historical-snapshots-are-latest-known-not-legally-complete"
   ],

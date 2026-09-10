@@ -1,39 +1,57 @@
 # TVData MCP server
 
-TVData exposes its public-sector remuneration data through a small, read-only Model Context Protocol (MCP) server. The CSV files in this repository remain the source of truth; the MCP layer adds discovery, comparison and analytical semantics without copying the data into a second datastore.
+TVData exposes public-sector remuneration data through a read-only Model Context Protocol (MCP) server. Repository CSV files remain the canonical source of truth. The MCP layer adds discovery, semantic resolution, deterministic comparison, context resolution, provenance and compensation-component inspection without creating a second datastore.
 
-## Design goal
+## Architectural boundary
 
-The server is not just a CSV reader. Its primary use case is **tariff and remuneration intelligence**: an MCP client should be able to find pay systems, compare exact positions, rank comparable cells, inspect progression and working time, follow historical changes and see the provenance and limits of every comparison.
+The MCP is an analytical interface, not a payroll engine and not a second data model. It follows the project rule `Require -> Adopt -> Profile -> Extend -> Invent`.
 
-A key design rule is that **pay proximity is not employment equivalence**. Comparisons between collective agreements and civil-service salary scales are allowed, but the server explicitly marks the limits of nominal base-pay comparisons. It does not infer equivalent duties, qualification requirements, pension rights, social-insurance treatment or net income.
+The server may:
 
-## Scope
+- discover pay systems, grades, steps, allowances and supplementary pension metadata;
+- resolve human pay-system terms to canonical table identifiers;
+- resolve current and latest-known historical snapshots;
+- compare and rank nominal base pay;
+- normalize base pay by documented contractual working time;
+- inspect progression, provenance and data quality;
+- inspect compensation-component encodings and calculation readiness.
 
-The server supports three layers:
+The server must not:
 
-1. **Data access** — tables, metadata, base pay, allowances, pension metadata.
-2. **Deterministic comparison** — exact positions, rankings, contractual working-time normalization, progression and history.
-3. **Interpretation guardrails** — provenance, validity dates, comparability warnings and data-quality diagnostics.
+- mutate repository data;
+- infer occupational, legal or status equivalence from similar pay;
+- calculate net income or employer cost without separate tax/social-insurance models;
+- treat archived yearly snapshots as a legally complete temporal database;
+- calculate a payment amount from an annual percentage without the tariff-specific assessment base;
+- automatically construct total annual compensation until all included components have validated entitlement, temporal and assessment-base semantics.
 
-It does **not** modify repository data, calculate a complete net salary, or execute the legacy `scripts/prv/*` calculation functions. It also does not currently construct total annual compensation by automatically adding allowances: the allowance schemas contain different semantics (`func_type`, `adding_type`, options), so aggregation should only be introduced once those rules have a validated standalone contract.
+## Application profile
 
-## Requirements
+`profiles/tvdata-mcp/manifest.json` defines the versioned application profile.
+
+Current profile:
+
+- profile id: `tvdata-tariff-intelligence`
+- profile version: `0.3.0`
+- schema version: `1.0.0`
+- stability: `experimental`
+- source of truth: `repository-csv`
+
+The profile is exposed through `get_application_profile_manifest`.
+
+## Requirements and execution
 
 - Python 3.10+
 - `pip install -r requirements-mcp.txt`
+- install `pytest>=8` for tests
 
-For tests, also install `pytest>=8`.
-
-## Run locally (stdio)
+Local stdio transport:
 
 ```bash
 python mcp_server.py
 ```
 
-`stdio` is the default transport and is appropriate when a local MCP host launches the server as a child process.
-
-## Run over Streamable HTTP
+Streamable HTTP:
 
 ```bash
 TVDATA_MCP_TRANSPORT=streamable-http \
@@ -42,115 +60,137 @@ TVDATA_MCP_PORT=8000 \
 python mcp_server.py
 ```
 
-The MCP endpoint is then available at `http://127.0.0.1:8000/mcp`.
+The endpoint is then available at `http://127.0.0.1:8000/mcp`. For remote deployment, terminate TLS at the platform/reverse proxy. Authentication becomes mandatory if write tools or non-public data are ever introduced.
 
-For container/PaaS deployment, set `TVDATA_MCP_HOST=0.0.0.0` and terminate TLS at the reverse proxy or platform edge. Because the underlying repository is public and this server is read-only, application-level authentication is not required for the initial public-data use case. If write tools or non-public datasets are added later, authentication and authorization become mandatory design concerns.
+## Tool layers
 
-## Tools
+### Raw discovery
 
-### Discovery and raw data
+- `list_pay_tables`
+- `get_pay_table_structure`
+- `get_pay_table_metadata`
+- `get_base_pay`
+- `get_progression`
+- `list_allowances`
+- `get_allowance_value`
+- `get_allowance_metadata`
+- `list_pension_plans`
+- `get_pension_metadata`
 
-| Tool | Purpose |
-| --- | --- |
-| `list_pay_tables` | Find current pay-table identifiers and core metadata. |
-| `get_pay_table_structure` | Discover valid grades, steps and linked components before querying. |
-| `get_pay_table_metadata` | Return all metadata for one table. |
-| `get_base_pay` | Return monthly gross base pay for table + grade + step. |
-| `get_progression` | Return documented years to the next step. |
-| `list_allowances` | List all allowances or those linked to one table. |
-| `get_allowance_value` | Return one allowance value plus its semantics metadata. |
-| `get_allowance_metadata` | Return all metadata for an allowance. |
-| `list_pension_plans` | List all supplementary pension plans or those linked to one table. |
-| `get_pension_metadata` | Return all metadata for a pension plan. |
+### Tariff intelligence
 
-### Comparison and analytics
+- `list_pay_systems`
+- `resolve_pay_system_entity`
+- `resolve_pay_table_as_of`
+- `get_base_pay_at_date`
+- `compare_pay_positions`
+- `compare_pay_positions_at_dates`
+- `rank_pay_positions`
+- `rank_pay_positions_at_date`
+- `compare_step_progressions`
+- `get_pay_history_series`
+- `find_nearest_pay_positions`
 
-| Tool | Purpose |
-| --- | --- |
-| `compare_pay_positions` | Compare 2–20 exact table/grade/step positions and show deltas and comparability warnings. |
-| `rank_pay_positions` | Rank the same grade/step across selected or filtered current tables. |
-| `compare_weekly_working_time` | Compare regular weekly hours with dedicated provenance. |
-| `compare_step_progressions` | Compare waiting times and cumulative years-to-step. |
-| `get_pay_history_series` | Combine the current table with matching `archive/<table>-YYYY` snapshots. |
-| `find_nearest_pay_positions` | Find nearest nominal base-pay cells without claiming job/status equivalence. |
-| `get_pay_provenance` | Return validity, pay source, working-time source and linked compensation components. |
-| `audit_pay_data_quality` | Check metadata compatibility, missing provenance and numeric matrix integrity. |
+### Context and provenance
 
-## Example analytical workflows
+- `resolve_weekly_working_time`
+- `compare_pay_positions_with_context`
+- `compare_weekly_working_time`
+- `get_pay_provenance`
+- `assess_pay_system_provenance`
+- `audit_pay_data_quality`
+- `audit_source_provenance`
 
-### TV-L vs. TVöD Bund
+### P2 compensation semantics
 
-A client can compare `TV-L / 13 / step 4` with `TVöD-Bund / 13 / step 4`. TV-L has working time that depends on the federal state, so the caller can provide an explicit `weekly_hours_override` (for example 40 hours) when a working-time-normalized comparison is required. Without an unambiguous value, the server deliberately leaves the normalized figure unresolved instead of guessing.
+- `inspect_compensation_components`
+- `audit_compensation_component_semantics`
 
-### A13 across jurisdictions
+These P2 tools inspect component encodings, options, validity, scope, provenance and annualization readiness. They deliberately stop before total-compensation calculation.
 
-`rank_pay_positions(pay_grade="13", step="4", regime="civil_service")` ranks current civil-service A-scale cells that contain that grade and step. Tables without the requested position are counted as skipped rather than silently treated as zero.
+## Working-time context
 
-### Historical development
+Working time is not always a property of the pay table alone. `profiles/tvdata-mcp/working-time-context.csv` stores contextual records where jurisdiction or employment context is required.
 
-`get_pay_history_series(table_id="TV-L", pay_grade="13", step="4")` combines matching archive snapshots such as `archive/TV-L-2022` with the current `tables/TV-L` value and returns nominal changes between consecutive available snapshots.
+Example: `TV-L` without a Land is intentionally unresolved. `resolve_weekly_working_time(table_id="TV-L", jurisdiction_code="DE-ST")` resolves Sachsen-Anhalt to the documented value and returns its provenance and evidence quality. `TVöD-Bund` can use an unambiguous table-level default.
 
-### Pay-nearest search
+`compare_pay_positions_with_context` uses this resolver so callers do not need to inject arbitrary working-time overrides when a profiled context exists.
 
-`find_nearest_pay_positions` is intentionally heuristic. It answers questions such as “which current pay cells are numerically closest to this salary?” It does **not** answer “which jobs are equivalent?”. The result always carries this warning because similar base salaries can arise from very different legal and occupational structures.
-
-## Comparison semantics
-
-### Monthly and annual base pay
-
-`monthly_base_eur` is the table's nominal monthly gross base pay. `annual_base_eur` is simply `monthly_base_eur * 12`; it is **not total annual compensation** and excludes annual bonuses, allowances and other components.
-
-### Working-time normalization
-
-`base_per_contract_hour_eur` is an analytical normalization:
+The normalization
 
 ```text
 (monthly base × 12) / (weekly contractual hours × 52)
 ```
 
-It is not a payroll hourly wage. Vacation, public holidays, overtime, bonuses and allowances are not adjusted. If the source specifies a contextual range (for example TV-L working time by federal state), the server does not choose a value automatically; callers can provide an explicit override.
+is an analytical comparison metric, not a payroll hourly wage.
 
-### Different employment regimes
+## Provenance
 
-Civil-service salary scales and collective agreements can be compared at the nominal-base-pay layer. Total compensation and net income are not directly comparable because pension, social-insurance, tax and employment-status rules differ. The MCP response makes this boundary explicit.
+`profiles/tvdata-mcp/source-registry.csv` classifies known source domains by authority role and evidence quality. Source authority and factual/temporal correctness are kept separate: an authoritative domain does not prove that a particular document is the correct version for a dataset.
 
-### Validity
+The provenance tools expose source URLs, validity metadata, registry classification and gaps. P1 also corrected stale pay-table source links for current TV-L and TVöD-Bund data without changing the corresponding pay values.
 
-Every comparison exposes `valid_from` where available. A comparison can therefore reveal that inputs come from different effective dates. Historical data are sourced from the repository's `archive` directories rather than reconstructed from external sources at request time.
+## P2 compensation semantics
 
-## Metadata compatibility
+Allowance tables use repository-specific combinations such as `func_type=fabsolute|frelative` and `adding_type=monthly|yearly`. P2 makes these semantics explicit instead of assuming that every linked component can be safely added to annual base pay.
 
-The repository currently contains both `name,value` and `key,value` variants of `Meta.csv`. The MCP reader accepts both and the data-quality audit reports the alternate form. This preserves coverage while making schema convergence visible instead of silently dropping affected tables.
+The inspection layer classifies components as:
 
-## Test
+- `absolute_monthly`
+- `absolute_yearly`
+- `relative_monthly`
+- `relative_yearly`
+- `unknown`
 
-Pure comparison logic can be tested without starting a server:
+For annual special payments stored as a relative yearly factor, P2 introduces:
 
-```bash
-pytest -q tests/test_mcp_analytics.py
+```text
+value_semantics=annual_percentage_divided_by_12
 ```
 
-MCP transport/schema contracts use the SDK's in-memory client:
+This means a stored value such as `6.25` can be reconstructed as an encoded annual rate of `75 %` (`6.25 × 12`). It does **not** mean the payment equals 75 % of one table month. The tariff-specific assessment base, entitlement conditions, reductions and special contexts remain separate requirements.
+
+Accordingly, `represented_annual_rate_pct` is informational/provenance output, while `safe_for_total_annual_compensation` remains `false` for these components.
+
+### 2026 annual-special-payment data
+
+P2 updates the encoded 2026 annual-special-payment rates for the current TVöD profiles:
+
+- Bund: 95 % for E1-E8, 90 % for E9a-E12, 75 % for E13-E15;
+- general VKA: 85 %;
+- generic VKA S-table profile: 85 %, explicitly excluding `TVöD-BT-B` and `TVöD-BT-K` special contexts.
+
+The special BT-B/BT-K rules are intentionally not projected into the generic S-table component.
+
+`default_option` remains repository configuration metadata and is not interpreted by the MCP as proof of individual entitlement.
+
+## Historical semantics
+
+Historical resolution chooses the latest known repository snapshot on or before the requested date. It does not extrapolate backwards before the earliest known snapshot and does not silently project current working-time values into older periods. The archive therefore provides repository history, not a legally complete validity-time database.
+
+## Testing
+
+Pure domain/profile tests live under `tests/` and MCP contract tests use the SDK in-memory client. Relevant commands after installing the MCP dependencies include:
 
 ```bash
-pytest -q tests/test_mcp_server.py
+pytest -q tests/test_mcp_analytics.py tests/test_mcp_context.py tests/test_mcp_compensation.py
+pytest -q tests/test_mcp_server.py tests/test_mcp_context_contract.py tests/test_mcp_compensation_contract.py
 ```
 
-The repository contains both test layers. They should be run after installing `requirements-mcp.txt`; no GitHub Actions workflow is added solely for the MCP server.
+No GitHub Actions workflow is introduced solely for this MCP feature.
 
-## Recommended next extensions
+## Validation status
 
-The next useful extensions should preserve the separation between canonical data and derived analytics:
+The repository changes include regression tests for profile versioning, contextual working time, provenance, annual-rate reconstruction and MCP tool contracts. In the current authoring environment, direct GitHub cloning is unavailable because outbound DNS is blocked and the MCP SDK is not installed, so the full runtime `pytest` suite cannot be executed here. This limitation must remain explicit in the pull request until the suite is run in an environment with `requirements-mcp.txt` installed.
 
-1. **As-of-date resolution** — resolve the dataset valid on a requested date from current/archive snapshots, with explicit handling where `valid_to` is not recorded.
-2. **Canonical taxonomy and aliases** — encode jurisdiction, employment regime, tariff family and aliases in metadata instead of relying on table-name heuristics.
-3. **Validated annual-compensation profiles** — aggregate recurring allowances and annual bonuses only after their calculation semantics are formalized and tested.
-4. **Context resolver for working time** — resolve TV-L or other conditional hours from jurisdiction/context rather than requiring a manual override.
-5. **Source-quality metadata** — distinguish primary legal/tariff sources from secondary references and expose verification/access dates systematically.
-6. **Schema/version contract** — publish a stable MCP output/application-profile version for downstream clients.
-7. **Real-wage analysis as an optional external-data profile** — inflation adjustment requires CPI data outside the current TVData source of truth and should therefore be a separate, provenance-aware adapter rather than silently embedded constants.
-8. **Employer-cost/net-pay integration only as a separate engine** — these require tax, social-insurance and scenario assumptions that should not contaminate TVData's canonical pay-data boundary.
+## Next boundary
 
-## ChatGPT
+A future P3 may add validated annual-compensation calculations, but only after formalizing at least:
 
-For ChatGPT usage, expose the Streamable HTTP endpoint through a supported remote deployment or a secure MCP tunnel. Keep the server read-only unless there is a concrete, separately authorized write use case.
+1. entitlement conditions and default semantics;
+2. tariff-specific assessment bases;
+3. time-dependent component validity;
+4. reductions/proration and special employment contexts;
+5. component interaction/double-counting rules.
+
+Net pay, employer cost and CPI-backed real-pay analysis should remain separate adapters/engines rather than being folded into the TVData canonical pay-data boundary.

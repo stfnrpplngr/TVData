@@ -43,6 +43,13 @@ def test_resolver_maps_bund_e13_to_tvoed_bund():
     assert result.candidates[0].identity.table_id == "TVöD-Bund"
 
 
+def test_resolver_keeps_named_employer_specific_federal_system():
+    result = resolve_pay_system(ROOT, "Autobahn Bund E13", limit=3)
+    assert result.jurisdiction_context_code == "DE"
+    assert result.grade_prefix_hint == "E"
+    assert result.candidates[0].identity.table_id == "MTV-Autobahn"
+
+
 def test_resolver_preserves_state_as_context_for_tv_l():
     result = resolve_pay_system(ROOT, "TV-L Sachsen-Anhalt", limit=3)
     assert result.jurisdiction_context_code == "DE-ST"

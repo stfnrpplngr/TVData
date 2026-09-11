@@ -1,0 +1,42 @@
+name: TVData MCP smoke
+
+on:
+  pull_request:
+    paths:
+      - 'mcp_*.py'
+      - 'tests/test_mcp*.py'
+      - 'profiles/tvdata-mcp/**'
+      - 'requirements-mcp.txt'
+      - '.github/workflows/mcp-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tvdata-mcp-smoke-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: MCP contracts and regression suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Repository laden
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: requirements-mcp.txt
+
+      - name: MCP-Testabhängigkeiten installieren
+        run: |
+          python -m pip install -r requirements-mcp.txt
+          python -m pip install pytest
+
+      - name: TVData MCP vollständig prüfen
+        run: python -m pytest -q tests/test_mcp*.py

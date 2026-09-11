@@ -172,7 +172,10 @@ def identity_for_table(table_id: str, meta: dict[str, str]) -> PaySystemIdentity
     # "Sachsen-Anhalt" should provide context, not compete with "TV-L" as a
     # tariff-family signal. Storage ids and full names still retain those tokens.
     aliases = [table_id, table_id.replace("-", " "), name_de or "", name_en or "", family]
-    if jurisdiction:
+    # Employer-specific systems must be named by employer/family. Appending only
+    # their broad jurisdiction (for example "MTV-Autobahn Bund") makes a generic
+    # query such as "Bund E13" compete with the general TVöD-Bund system.
+    if jurisdiction and scope != "employer_specific":
         aliases.append(f"{family} {jurisdiction.name_de}")
 
     if regime == "civil_service":

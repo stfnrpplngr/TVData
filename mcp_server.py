@@ -11,10 +11,10 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from mcp.server import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
 from mcp_analytics import AnalyticsError, read_metadata
+from mcp_safety import ReadOnlyMCPServer as MCPServer
 from mcp_tools import register_analytics_tools
 
 ROOT = Path(__file__).resolve().parent
